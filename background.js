@@ -45,8 +45,9 @@ function getDomain(url) {
  *
  * Algorithm:
  *  1. Build a domain → tabIds map from the current tab list.
- *  2. Ungroup any tab whose URL doesn't have an http/https domain.
- *  3. For each domain that has ≥ 1 tab:
+ *  2. Ungroup any tab whose URL doesn't have an http/https domain, and any
+ *     tab that is the sole tab for its domain (groups need ≥ 2 tabs).
+ *  3. For each domain that has ≥ 2 tabs:
  *       – Re-use an existing group whose title matches the domain, or
  *       – Create a new group, then set its title and colour.
  */
@@ -67,14 +68,26 @@ async function regroupTabsInWindow(windowId) {
     }
   }
 
-  // ── 2. Ungroup non-http tabs that ended up in a group ───────────────────
+  // Build a quick tabId → current groupId lookup from the already-fetched tabs.
+  const tabGroupMap = new Map(tabs.map(t => [t.id, t.groupId]));
+
+  // ── 2. Ungroup non-http tabs and sole-tab domains ───────────────────────
   for (const tab of noGroupTabIds) {
     if (tab.groupId !== TAB_GROUP_ID_NONE) {
       await chrome.tabs.ungroup([tab.id]);
     }
   }
 
-  // ── 3. Group tabs by domain ─────────────────────────────────────────────
+  for (const [, tabIds] of domainToTabIds) {
+    if (tabIds.length < 2) {
+      const tabId = tabIds[0];
+      if (tabGroupMap.get(tabId) !== TAB_GROUP_ID_NONE) {
+        await chrome.tabs.ungroup([tabId]);
+      }
+    }
+  }
+
+  // ── 3. Group tabs by domain (≥ 2 tabs only) ─────────────────────────────
   // Build a title → groupId map for groups that already exist in this window.
   const existingGroups = await chrome.tabGroups.query({ windowId });
   const titleToGroupId = new Map(
@@ -82,6 +95,8 @@ async function regroupTabsInWindow(windowId) {
   );
 
   for (const [domain, tabIds] of domainToTabIds) {
+    if (tabIds.length < 2) continue; // single tab – leave ungrouped
+
     if (titleToGroupId.has(domain)) {
       // Add all domain tabs to the pre-existing group.
       await chrome.tabs.group({ groupId: titleToGroupId.get(domain), tabIds });
