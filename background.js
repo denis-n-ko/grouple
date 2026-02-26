@@ -59,7 +59,7 @@ async function regroupTabsInWindow(windowId) {
   const noGroupTabIds = [];
 
   for (const tab of tabs) {
-    const domain = getDomain(tab.url || tab.pendingUrl);
+    const domain = getDomain(tab.pendingUrl || tab.url);
     if (domain) {
       if (!domainToTabIds.has(domain)) domainToTabIds.set(domain, []);
       domainToTabIds.get(domain).push(tab.id);
