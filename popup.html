@@ -48,15 +48,23 @@
     }
 
     #groups-list li {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 8px;
       border-radius: 6px;
       margin-bottom: 4px;
       background: #fff;
       border: 1px solid #e9ecef;
+      overflow: hidden;
     }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .group-header:hover { background: #f1f3f5; }
 
     .dot {
       width: 10px;
@@ -67,6 +75,51 @@
 
     .domain { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .count  { font-size: 11px; color: #6c757d; }
+
+    .chevron {
+      font-size: 10px;
+      color: #6c757d;
+      transition: transform 0.15s;
+      flex-shrink: 0;
+    }
+
+    .chevron.open { transform: rotate(90deg); }
+
+    .tabs-list {
+      display: none;
+      list-style: none;
+      border-top: 1px solid #e9ecef;
+    }
+
+    .tabs-list.open { display: block; }
+
+    .tab-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px 5px 20px;
+      cursor: pointer;
+    }
+
+    .tab-item:hover { background: #e9ecef; }
+
+    .tab-favicon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      object-fit: contain;
+    }
+
+    .tab-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      color: #495057;
+    }
+
+    .tab-item.active-tab .tab-title { font-weight: 600; color: #212529; }
 
     #regroup-btn {
       width: 100%;
