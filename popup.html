@@ -10,7 +10,7 @@
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 13px;
-      width: 280px;
+      width: 360px;
       background: #f8f9fa;
       color: #212529;
     }
@@ -43,7 +43,7 @@
     #groups-list {
       list-style: none;
       margin-bottom: 12px;
-      max-height: 260px;
+      max-height: 360px;
       overflow-y: auto;
     }
 
@@ -170,6 +170,35 @@
     .color-cyan   { background: #007b83; }
     .color-orange { background: #e37400; }
     .color-grey   { background: #80868b; }
+
+    #search {
+      display: block;
+      width: 100%;
+      padding: 6px 10px;
+      font-size: 13px;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      outline: none;
+      margin-bottom: 8px;
+      background: #fff;
+      color: #212529;
+    }
+
+    #search:focus {
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+    }
+
+    .nav-focus {
+      outline: 2px solid #4f46e5;
+      outline-offset: -2px;
+      border-radius: 4px;
+    }
+
+    .ungrouped-li {
+      margin-top: 8px;
+      border-top: 1px solid #dee2e6 !important;
+    }
   </style>
 </head>
 <body>
@@ -180,6 +209,7 @@
 
   <div class="content">
     <p id="status">Loading…</p>
+    <input type="search" id="search" placeholder="Search groups and tabs…" autocomplete="off" />
     <ul id="groups-list"></ul>
     <button id="regroup-btn">Regroup Tabs Now</button>
   </div>
