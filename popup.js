@@ -87,7 +87,25 @@ async function renderGroups() {
           title.textContent = tab.title || tab.url || '(no title)';
           title.title = tab.title || tab.url || '';
 
-          tabItem.append(favicon, title);
+          const closeBtn = document.createElement('button');
+          closeBtn.className = 'tab-close';
+          closeBtn.textContent = '×';
+          closeBtn.title = 'Close tab';
+
+          closeBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+              await chrome.tabs.remove(tab.id);
+              tabItem.remove();
+              const remaining = tabsList.querySelectorAll('.tab-item').length;
+              badge.textContent = `${remaining} tab${remaining !== 1 ? 's' : ''}`;
+              if (remaining === 0) li.remove();
+            } catch (err) {
+              console.error('Failed to close tab:', err);
+            }
+          });
+
+          tabItem.append(favicon, title, closeBtn);
 
           tabItem.addEventListener('click', async (e) => {
             e.stopPropagation();

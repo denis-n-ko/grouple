@@ -121,6 +121,22 @@
 
     .tab-item.active-tab .tab-title { font-weight: 600; color: #212529; }
 
+    .tab-close {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #6c757d;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
+      flex-shrink: 0;
+      border-radius: 3px;
+    }
+
+    .tab-item:hover .tab-close { display: block; }
+    .tab-close:hover { background: #dee2e6; color: #212529; }
+
     #regroup-btn {
       width: 100%;
       padding: 8px;
