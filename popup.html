@@ -10,7 +10,7 @@
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 13px;
-      width: 280px;
+      width: 360px;
       background: #f8f9fa;
       color: #212529;
     }
@@ -43,20 +43,28 @@
     #groups-list {
       list-style: none;
       margin-bottom: 12px;
-      max-height: 260px;
+      max-height: 360px;
       overflow-y: auto;
     }
 
     #groups-list li {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 8px;
       border-radius: 6px;
       margin-bottom: 4px;
       background: #fff;
       border: 1px solid #e9ecef;
+      overflow: hidden;
     }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .group-header:hover { background: #f1f3f5; }
 
     .dot {
       width: 10px;
@@ -67,6 +75,67 @@
 
     .domain { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .count  { font-size: 11px; color: #6c757d; }
+
+    .chevron {
+      font-size: 10px;
+      color: #6c757d;
+      transition: transform 0.15s;
+      flex-shrink: 0;
+    }
+
+    .chevron.open { transform: rotate(90deg); }
+
+    .tabs-list {
+      display: none;
+      list-style: none;
+      border-top: 1px solid #e9ecef;
+    }
+
+    .tabs-list.open { display: block; }
+
+    .tab-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px 5px 20px;
+      cursor: pointer;
+    }
+
+    .tab-item:hover { background: #e9ecef; }
+
+    .tab-favicon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      object-fit: contain;
+    }
+
+    .tab-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      color: #495057;
+    }
+
+    .tab-item.active-tab .tab-title { font-weight: 600; color: #212529; }
+
+    .tab-close {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #6c757d;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
+      flex-shrink: 0;
+      border-radius: 3px;
+    }
+
+    .tab-item:hover .tab-close { display: block; }
+    .tab-close:hover { background: #dee2e6; color: #212529; }
 
     #regroup-btn {
       width: 100%;
@@ -101,6 +170,35 @@
     .color-cyan   { background: #007b83; }
     .color-orange { background: #e37400; }
     .color-grey   { background: #80868b; }
+
+    #search {
+      display: block;
+      width: 100%;
+      padding: 6px 10px;
+      font-size: 13px;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      outline: none;
+      margin-bottom: 8px;
+      background: #fff;
+      color: #212529;
+    }
+
+    #search:focus {
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+    }
+
+    .nav-focus {
+      outline: 2px solid #4f46e5;
+      outline-offset: -2px;
+      border-radius: 4px;
+    }
+
+    .ungrouped-li {
+      margin-top: 8px;
+      border-top: 1px solid #dee2e6 !important;
+    }
   </style>
 </head>
 <body>
@@ -111,6 +209,7 @@
 
   <div class="content">
     <p id="status">Loading…</p>
+    <input type="search" id="search" placeholder="Search groups and tabs…" autocomplete="off" />
     <ul id="groups-list"></ul>
     <button id="regroup-btn">Regroup Tabs Now</button>
   </div>
