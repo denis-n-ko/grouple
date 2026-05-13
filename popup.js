@@ -7,9 +7,11 @@ let navIndex = -1;
 let currentActiveGroupId = null;
 
 const STORAGE_GROUP_ORDER_KEY = 'groupOrder';
+const DEFAULT_GROUP_TITLE = '(unnamed)';
+const DEFAULT_GROUP_COLOR = 'grey';
 
 function getGroupKey(group) {
-  return JSON.stringify([group.title || '(unnamed)', group.color || 'grey']);
+  return JSON.stringify([group.title || DEFAULT_GROUP_TITLE, group.color || DEFAULT_GROUP_COLOR]);
 }
 
 async function getStoredGroupOrder() {
@@ -222,8 +224,8 @@ async function renderGroups() {
       for (const group of orderedGroups) {
         listEl.appendChild(buildGroupItem({
           id: group.id,
-          title: group.title || '(unnamed)',
-          color: group.color || 'grey',
+          title: group.title || DEFAULT_GROUP_TITLE,
+          color: group.color || DEFAULT_GROUP_COLOR,
           key: group.key,
         }, groupTabsMap.get(group.id) || []));
       }
@@ -332,13 +334,6 @@ function hasFocusedGroupNavTarget() {
   return navIndex >= 0 && navIndex < navList.length && navList[navIndex].type === 'group';
 }
 
-function escapeCssValue(value) {
-  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-    return CSS.escape(String(value));
-  }
-  return String(value).replace(/["\\]/g, '\\$&');
-}
-
 function setGroupExpanded(li, expanded) {
   const tabsList = li.querySelector('.tabs-list');
   if (!tabsList) return;
@@ -412,8 +407,8 @@ async function moveFocusedGroupBelowSearchTarget() {
 function focusCurrentTabGroup() {
   if (currentActiveGroupId === null) return false;
   const listEl = document.getElementById('groups-list');
-  const selector = `.group-header[data-group-id="${escapeCssValue(currentActiveGroupId)}"]`;
-  let header = listEl.querySelector(selector);
+  let header = [...listEl.querySelectorAll('.group-header')]
+    .find(el => el.dataset.groupId === String(currentActiveGroupId));
   if (!header && currentActiveGroupId === -1) {
     header = listEl.querySelector('.ungrouped-li .group-header');
   }
