@@ -332,6 +332,13 @@ function hasFocusedGroupNavTarget() {
   return navIndex >= 0 && navIndex < navList.length && navList[navIndex].type === 'group';
 }
 
+function escapeCssValue(value) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(String(value));
+  }
+  return String(value).replace(/["\\]/g, '\\$&');
+}
+
 function setGroupExpanded(li, expanded) {
   const tabsList = li.querySelector('.tabs-list');
   if (!tabsList) return;
@@ -405,7 +412,7 @@ async function moveFocusedGroupBelowSearchTarget() {
 function focusCurrentTabGroup() {
   if (currentActiveGroupId === null) return false;
   const listEl = document.getElementById('groups-list');
-  const selector = `.group-header[data-group-id="${currentActiveGroupId}"]`;
+  const selector = `.group-header[data-group-id="${escapeCssValue(currentActiveGroupId)}"]`;
   let header = listEl.querySelector(selector);
   if (!header && currentActiveGroupId === -1) {
     header = listEl.querySelector('.ungrouped-li .group-header');

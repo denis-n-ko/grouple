@@ -213,6 +213,18 @@
       line-height: 1.3;
     }
 
+    #shortcut-hint kbd {
+      font-family: inherit;
+      font-size: 11px;
+      border: 1px solid #ced4da;
+      border-bottom-width: 2px;
+      border-radius: 4px;
+      padding: 0 4px;
+      background: #fff;
+      color: #495057;
+      white-space: nowrap;
+    }
+
     .nav-focus {
       outline: 2px solid #4f46e5;
       outline-offset: -2px;
@@ -234,7 +246,11 @@
   <div class="content">
     <p id="status">Loading…</p>
     <input type="search" id="search" placeholder="Search groups and tabs…" autocomplete="off" />
-    <p id="shortcut-hint">Ctrl+Shift+[ fold all · Ctrl+Shift+] unfold all · Ctrl+Shift+G focus current group</p>
+    <p id="shortcut-hint" aria-label="Popup shortcuts: Control Shift left bracket folds all groups, Control Shift right bracket unfolds all groups, and Control Shift G focuses the current tab group.">
+      <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>[</kbd> fold all ·
+      <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>]</kbd> unfold all ·
+      <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> focus current group
+    </p>
     <ul id="groups-list"></ul>
     <button id="regroup-btn">Regroup Tabs Now</button>
   </div>
