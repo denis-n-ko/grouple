@@ -3,7 +3,7 @@
   "name": "Auto Tab Groups",
   "version": "1.0.0",
   "description": "Automatically groups open tabs by domain name",
-  "permissions": ["tabs", "tabGroups"],
+  "permissions": ["tabs", "tabGroups", "storage"],
   "commands": {
     "_execute_action": {
       "suggested_key": {
