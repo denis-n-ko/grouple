@@ -4,9 +4,36 @@
 
 let navList  = [];
 let navIndex = -1;
+let currentActiveGroupId = null;
+
+const STORAGE_GROUP_ORDER_KEY = 'groupOrder';
+const DEFAULT_GROUP_TITLE = '(unnamed)';
+const DEFAULT_GROUP_COLOR = 'grey';
+
+function getGroupKey(group) {
+  return JSON.stringify([group.title || DEFAULT_GROUP_TITLE, group.color || DEFAULT_GROUP_COLOR]);
+}
+
+async function getStoredGroupOrder() {
+  const data = await chrome.storage.local.get({ [STORAGE_GROUP_ORDER_KEY]: [] });
+  return Array.isArray(data[STORAGE_GROUP_ORDER_KEY]) ? data[STORAGE_GROUP_ORDER_KEY] : [];
+}
+
+async function saveGroupOrder(order) {
+  await chrome.storage.local.set({ [STORAGE_GROUP_ORDER_KEY]: order });
+}
+
+async function persistDomGroupOrder() {
+  const listEl = document.getElementById('groups-list');
+  const order = [...listEl.querySelectorAll('li.group-li:not(.ungrouped-li) .group-header')]
+    .map(header => header.dataset.groupKey)
+    .filter(Boolean);
+  await saveGroupOrder(order);
+}
 
 // ── Build a group / ungrouped row ────────────────────────────────────────────
-function buildGroupItem(title, color, groupTabs) {
+function buildGroupItem(group, groupTabs) {
+  const { id, title, color, key } = group;
   const isUngrouped = color === null;
   const count = groupTabs.length;
   const li = document.createElement('li');
@@ -16,6 +43,8 @@ function buildGroupItem(title, color, groupTabs) {
   const header = document.createElement('div');
   header.className = 'group-header';
   header.dataset.groupTitle = title;
+  header.dataset.groupId = String(id);
+  if (key) header.dataset.groupKey = key;
 
   if (!isUngrouped) {
     const dot = document.createElement('span');
@@ -37,6 +66,28 @@ function buildGroupItem(title, color, groupTabs) {
   chevron.textContent = '▶';
 
   header.append(domain, badge, chevron);
+
+  if (!isUngrouped) {
+    const moveUpBtn = document.createElement('button');
+    moveUpBtn.className = 'group-move';
+    moveUpBtn.title = 'Move group up (Alt+↑)';
+    moveUpBtn.textContent = '↑';
+    moveUpBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await moveGroupByOffset(header, -1);
+    });
+
+    const moveDownBtn = document.createElement('button');
+    moveDownBtn.className = 'group-move';
+    moveDownBtn.title = 'Move group down (Alt+↓)';
+    moveDownBtn.textContent = '↓';
+    moveDownBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await moveGroupByOffset(header, 1);
+    });
+
+    header.append(moveUpBtn, moveDownBtn);
+  }
 
   // ── Tabs list (hidden by default) ────────────────────────────────
   const tabsList = document.createElement('ul');
@@ -107,6 +158,7 @@ async function renderGroups() {
   listEl.innerHTML = '';
   navList  = [];
   navIndex = -1;
+  currentActiveGroupId = null;
 
   try {
     const currentWindow = await chrome.windows.getCurrent();
@@ -130,6 +182,8 @@ async function renderGroups() {
     }
 
     const activeGroups = groups.filter(g => groupTabsMap.has(g.id));
+    const activeTab = tabs.find(tab => tab.active);
+    currentActiveGroupId = activeTab ? activeTab.groupId : null;
     const totalTabs    = tabs.length;
 
     if (activeGroups.length === 0 && ungroupedTabs.length === 0) {
@@ -140,16 +194,45 @@ async function renderGroups() {
         ? `${totalTabs} tab${totalTabs !== 1 ? 's' : ''} · ${activeGroups.length} group${activeGroups.length !== 1 ? 's' : ''}`
         : `${totalTabs} tab${totalTabs !== 1 ? 's' : ''} – no groups`;
 
-      // Sort groups by tab count desc
-      activeGroups.sort((a, b) => (groupTabsMap.get(b.id) || []).length - (groupTabsMap.get(a.id) || []).length);
+      const groupsWithMeta = activeGroups.map(group => ({
+        ...group,
+        key: getGroupKey(group),
+      }));
 
-      for (const group of activeGroups) {
-        listEl.appendChild(buildGroupItem(group.title || '(unnamed)', group.color || 'grey', groupTabsMap.get(group.id) || []));
+      // Default order: tab count desc
+      groupsWithMeta.sort((a, b) => (groupTabsMap.get(b.id) || []).length - (groupTabsMap.get(a.id) || []).length);
+
+      // Optional manual order from storage
+      const storedOrder = await getStoredGroupOrder();
+      const groupByKey = new Map(groupsWithMeta.map(group => [group.key, group]));
+      const orderedGroups = [];
+
+      for (const key of storedOrder) {
+        const group = groupByKey.get(key);
+        if (group) {
+          orderedGroups.push(group);
+          groupByKey.delete(key);
+        }
+      }
+      orderedGroups.push(...groupByKey.values());
+
+      const nextOrder = orderedGroups.map(group => group.key);
+      if (JSON.stringify(nextOrder) !== JSON.stringify(storedOrder)) {
+        await saveGroupOrder(nextOrder);
+      }
+
+      for (const group of orderedGroups) {
+        listEl.appendChild(buildGroupItem({
+          id: group.id,
+          title: group.title || DEFAULT_GROUP_TITLE,
+          color: group.color || DEFAULT_GROUP_COLOR,
+          key: group.key,
+        }, groupTabsMap.get(group.id) || []));
       }
 
       // Ungrouped tabs at the bottom
       if (ungroupedTabs.length > 0) {
-        listEl.appendChild(buildGroupItem('Ungrouped', null, ungroupedTabs));
+        listEl.appendChild(buildGroupItem({ id: -1, title: 'Ungrouped', color: null }, ungroupedTabs));
       }
     }
   } catch (err) {
@@ -247,9 +330,146 @@ function navRefocus(el) {
   }
 }
 
+function hasFocusedGroupNavTarget() {
+  return navIndex >= 0 && navIndex < navList.length && navList[navIndex].type === 'group';
+}
+
+function setGroupExpanded(li, expanded) {
+  const tabsList = li.querySelector('.tabs-list');
+  if (!tabsList) return;
+  const chevron = li.querySelector('.chevron');
+  tabsList.classList.toggle('open', expanded);
+  chevron.classList.toggle('open', expanded);
+}
+
+function expandCollapseAll(expand) {
+  const listEl = document.getElementById('groups-list');
+  for (const li of listEl.querySelectorAll('li.group-li')) {
+    if (li.style.display === 'none') continue;
+    setGroupExpanded(li, expand);
+  }
+  buildNavList();
+}
+
+async function moveGroupByOffset(groupHeader, offset) {
+  const sourceLi = groupHeader.closest('li.group-li');
+  if (!sourceLi || sourceLi.classList.contains('ungrouped-li')) return false;
+  const listEl = document.getElementById('groups-list');
+  const movableLis = [...listEl.querySelectorAll('li.group-li:not(.ungrouped-li)')];
+  const sourceIdx = movableLis.indexOf(sourceLi);
+  if (sourceIdx === -1) return false;
+  const targetIdx = Math.max(0, Math.min(sourceIdx + offset, movableLis.length - 1));
+  if (targetIdx === sourceIdx) return false;
+
+  const targetLi = movableLis[targetIdx];
+  if (targetIdx > sourceIdx) {
+    listEl.insertBefore(sourceLi, targetLi.nextSibling);
+  } else {
+    listEl.insertBefore(sourceLi, targetLi);
+  }
+
+  await persistDomGroupOrder();
+  buildNavList();
+  navRefocus(groupHeader);
+  return true;
+}
+
+async function moveFocusedGroupBelowSearchTarget() {
+  if (navIndex < 0 || navIndex >= navList.length) return false;
+  const current = navList[navIndex];
+  if (current.type !== 'group') return false;
+  const sourceHeader = current.el;
+  const sourceLi = sourceHeader.closest('li.group-li');
+  if (!sourceLi || sourceLi.classList.contains('ungrouped-li')) return false;
+
+  const query = (document.getElementById('search').value || '').trim().toLowerCase();
+  if (!query) return false;
+
+  const listEl = document.getElementById('groups-list');
+  const targetHeader = [...listEl.querySelectorAll('li.group-li:not(.ungrouped-li) .group-header')]
+    .find(header =>
+      header !== sourceHeader &&
+      header.closest('li.group-li').style.display !== 'none' &&
+      (header.dataset.groupTitle || '').toLowerCase().includes(query)
+    );
+
+  if (!targetHeader) return false;
+  const targetLi = targetHeader.closest('li.group-li');
+  if (!targetLi || sourceLi === targetLi) return false;
+
+  listEl.insertBefore(sourceLi, targetLi.nextSibling);
+  await persistDomGroupOrder();
+  buildNavList();
+  navRefocus(sourceHeader);
+  return true;
+}
+
+function focusCurrentTabGroup() {
+  if (currentActiveGroupId === null) return false;
+  const listEl = document.getElementById('groups-list');
+  let header = [...listEl.querySelectorAll('.group-header')]
+    .find(el => el.dataset.groupId === String(currentActiveGroupId));
+  if (!header && currentActiveGroupId === -1) {
+    header = listEl.querySelector('.ungrouped-li .group-header');
+  }
+  if (!header) return false;
+
+  const groupLi = header.closest('li.group-li');
+  if (groupLi.style.display === 'none') {
+    const searchEl = document.getElementById('search');
+    searchEl.value = '';
+    filterList('');
+  }
+  setGroupExpanded(groupLi, true);
+  buildNavList();
+  const idx = navList.findIndex(item => item.el === header);
+  if (idx >= 0) {
+    navMoveTo(idx);
+    return true;
+  }
+  return false;
+}
+
 document.addEventListener('keydown', (e) => {
   const searchEl = document.getElementById('search');
   const onSearch = document.activeElement === searchEl;
+
+  if (e.ctrlKey && e.shiftKey && e.key === '[') {
+    e.preventDefault();
+    expandCollapseAll(false);
+    return;
+  }
+
+  if (e.ctrlKey && e.shiftKey && e.key === ']') {
+    e.preventDefault();
+    expandCollapseAll(true);
+    return;
+  }
+
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'g') {
+    e.preventDefault();
+    focusCurrentTabGroup();
+    return;
+  }
+
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'm') {
+    e.preventDefault();
+    moveFocusedGroupBelowSearchTarget();
+    return;
+  }
+
+  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && hasFocusedGroupNavTarget()) {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveGroupByOffset(navList[navIndex].el, -1);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      moveGroupByOffset(navList[navIndex].el, 1);
+      return;
+    }
+  }
 
   if (e.key === 'Escape') {
     navClear();

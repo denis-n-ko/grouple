@@ -12,6 +12,8 @@ All tabs pointing to `github.com` end up in one group, all tabs pointing to `sta
 - New tabs and browser-internal pages (`chrome://`, `about:blank`, etc.) are **not** grouped.
 - Each domain group gets a deterministic colour (the same domain always gets the same colour).
 - A small popup shows a live summary of current groups and a **Regroup Tabs Now** button.
+- Popup shortcuts for folding/unfolding all groups and jumping to the current tab's group.
+- Manual popup group ordering (buttons and keyboard shortcuts), persisted between popup opens.
 - Works across all open windows.
 
 ---
@@ -46,6 +48,19 @@ For each window, the grouping algorithm:
 |---|---|
 | `tabs`       | Read tab URLs and move tabs into groups |
 | `tabGroups`  | Create, update, and query tab groups |
+| `storage`    | Persist popup group order |
+
+---
+
+## Popup Keyboard Shortcuts
+
+When the popup is open:
+
+- `Ctrl+Shift+[` — Fold all visible groups
+- `Ctrl+Shift+]` — Unfold all visible groups
+- `Ctrl+Shift+G` — Focus the group containing the active tab
+- `Alt+↑ / Alt+↓` — Move focused group up/down in popup order
+- `Ctrl+Shift+M` — Move focused group below the first visible group matching the current search text
 
 ---
 
