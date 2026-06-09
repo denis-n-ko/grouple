@@ -7,124 +7,237 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --bg:              #0d0f18;
+      --surface:         #151720;
+      --surface-raised:  #1c1e2d;
+      --surface-hover:   #22243a;
+      --border:          #252738;
+      --border-hover:    #383a54;
+      --text-primary:    #e2e4f0;
+      --text-secondary:  #8b8fa8;
+      --text-muted:      #4a4d66;
+      --accent:          #6366f1;
+      --accent-hover:    #818cf8;
+      --accent-active:   #4f46e5;
+      --accent-subtle:   rgba(99, 102, 241, 0.12);
+      --accent-glow:     rgba(99, 102, 241, 0.25);
+      --close-hover-bg:  rgba(239, 68, 68, 0.15);
+      --close-hover-fg:  #f87171;
+      --radius-sm:       5px;
+      --radius-md:       8px;
+      --radius-lg:       10px;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 13px;
-      width: 360px;
-      background: #f8f9fa;
-      color: #212529;
+      width: 380px;
+      background: var(--bg);
+      color: var(--text-primary);
     }
 
+    /* ── Header ─────────────────────────────────────────────────────────── */
     header {
-      background: #4f46e5;
-      color: #fff;
-      padding: 12px 16px;
+      background: linear-gradient(135deg, #1a1c30 0%, #13141f 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 13px 16px;
       display: flex;
       align-items: center;
       gap: 10px;
     }
 
-    header img { width: 20px; height: 20px; }
+    header img { width: 22px; height: 22px; filter: drop-shadow(0 0 6px var(--accent-glow)); }
 
     header h1 {
       font-size: 14px;
       font-weight: 600;
       letter-spacing: 0.02em;
+      background: linear-gradient(90deg, #c7c9f5 0%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
-    .content { padding: 12px 16px; }
+    /* ── Content ─────────────────────────────────────────────────────────── */
+    .content { padding: 12px 14px; }
 
     #status {
-      font-size: 12px;
-      color: #6c757d;
+      font-size: 11px;
+      color: var(--text-muted);
       margin-bottom: 10px;
+      letter-spacing: 0.02em;
     }
 
+    /* ── Search ──────────────────────────────────────────────────────────── */
+    .search-wrap {
+      position: relative;
+      margin-bottom: 6px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      width: 14px;
+      height: 14px;
+      pointer-events: none;
+    }
+
+    #search {
+      display: block;
+      width: 100%;
+      padding: 7px 10px 7px 30px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      outline: none;
+      background: var(--surface);
+      color: var(--text-primary);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    #search::placeholder { color: var(--text-muted); }
+
+    #search:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-subtle);
+    }
+
+    #shortcut-hint {
+      margin: 0 0 10px;
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    #shortcut-hint kbd {
+      font-family: inherit;
+      font-size: 10px;
+      border: 1px solid var(--border-hover);
+      border-bottom-width: 2px;
+      border-radius: 3px;
+      padding: 0 4px;
+      background: var(--surface-raised);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    /* ── Groups list ─────────────────────────────────────────────────────── */
     #groups-list {
       list-style: none;
       margin-bottom: 12px;
       max-height: 360px;
       overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-hover) transparent;
     }
+
+    #groups-list::-webkit-scrollbar { width: 4px; }
+    #groups-list::-webkit-scrollbar-track { background: transparent; }
+    #groups-list::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 4px; }
 
     #groups-list li {
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       margin-bottom: 4px;
-      background: #fff;
-      border: 1px solid #e9ecef;
+      background: var(--surface);
+      border: 1px solid var(--border);
       overflow: hidden;
+      transition: border-color 0.15s;
     }
 
+    #groups-list li:hover { border-color: var(--border-hover); }
+
+    /* ── Group header ────────────────────────────────────────────────────── */
     .group-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 8px;
+      padding: 7px 8px;
       cursor: pointer;
       user-select: none;
+      transition: background 0.12s;
     }
 
-    .group-header:hover { background: #f1f3f5; }
+    .group-header:hover { background: var(--surface-hover); }
 
     .group-move {
       border: none;
       background: transparent;
-      color: #6c757d;
+      color: var(--text-muted);
       font-size: 12px;
       line-height: 1;
-      padding: 1px 4px;
-      border-radius: 4px;
+      padding: 2px 5px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
       flex-shrink: 0;
+      transition: background 0.12s, color 0.12s;
     }
 
     .group-move:hover {
-      background: #dee2e6;
-      color: #212529;
+      background: var(--surface-raised);
+      color: var(--text-primary);
     }
 
     .dot {
-      width: 10px;
-      height: 10px;
+      width: 9px;
+      height: 9px;
       border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: 0 0 4px currentColor;
+    }
+
+    .domain { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+
+    .count {
+      font-size: 10px;
+      color: var(--text-secondary);
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1px 7px;
       flex-shrink: 0;
     }
 
-    .domain { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .count  { font-size: 11px; color: #6c757d; }
-
     .chevron {
-      font-size: 10px;
-      color: #6c757d;
-      transition: transform 0.15s;
+      font-size: 9px;
+      color: var(--text-muted);
+      transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
       flex-shrink: 0;
     }
 
     .chevron.open { transform: rotate(90deg); }
 
+    /* ── Tabs list ───────────────────────────────────────────────────────── */
     .tabs-list {
-      display: none;
       list-style: none;
-      border-top: 1px solid #e9ecef;
+      border-top: 1px solid var(--border);
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.22s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .tabs-list.open { display: block; }
+    .tabs-list.open { max-height: 800px; }
 
     .tab-item {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 5px 8px 5px 20px;
+      padding: 5px 8px 5px 22px;
       cursor: pointer;
+      transition: background 0.1s;
     }
 
-    .tab-item:hover { background: #e9ecef; }
+    .tab-item:hover { background: var(--surface-hover); }
 
     .tab-favicon {
       width: 14px;
       height: 14px;
       flex-shrink: 0;
       object-fit: contain;
+      border-radius: 2px;
     }
 
     .tab-title {
@@ -133,123 +246,115 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       font-size: 12px;
-      color: #495057;
+      color: var(--text-secondary);
     }
 
-    .tab-item.active-tab .tab-title { font-weight: 600; color: #212529; }
+    .tab-item.active-tab .tab-title {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
 
     .tab-close {
       display: none;
       background: none;
       border: none;
       cursor: pointer;
-      color: #6c757d;
-      font-size: 14px;
+      color: var(--text-muted);
+      font-size: 15px;
       line-height: 1;
-      padding: 0 2px;
+      padding: 1px 3px;
       flex-shrink: 0;
-      border-radius: 3px;
+      border-radius: var(--radius-sm);
+      transition: background 0.12s, color 0.12s;
     }
 
     .tab-item:hover .tab-close { display: block; }
-    .tab-close:hover { background: #dee2e6; color: #212529; }
+    .tab-close:hover { background: var(--close-hover-bg); color: var(--close-hover-fg); }
 
+    /* ── Regroup button ──────────────────────────────────────────────────── */
     #regroup-btn {
       width: 100%;
-      padding: 8px;
-      background: #4f46e5;
+      padding: 9px;
+      background: var(--accent);
       color: #fff;
       border: none;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       cursor: pointer;
       font-size: 13px;
       font-weight: 500;
-      transition: background 0.15s;
+      letter-spacing: 0.01em;
+      transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
     }
 
-    #regroup-btn:hover  { background: #4338ca; }
-    #regroup-btn:active { background: #3730a3; }
+    #regroup-btn:hover  {
+      background: var(--accent-hover);
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
+    }
 
+    #regroup-btn:active {
+      background: var(--accent-active);
+      transform: translateY(1px);
+      box-shadow: 0 1px 4px rgba(99, 102, 241, 0.3);
+    }
+
+    #regroup-btn:disabled {
+      background: var(--surface-raised);
+      color: var(--text-muted);
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ── Empty state ─────────────────────────────────────────────────────── */
     .empty {
       text-align: center;
-      color: #adb5bd;
-      padding: 20px 0;
+      color: var(--text-muted);
+      padding: 24px 0;
       font-size: 12px;
     }
 
-    /* colour swatches matching Chrome tabGroups colours */
-    .color-blue   { background: #1a73e8; }
-    .color-red    { background: #d93025; }
-    .color-yellow { background: #f9ab00; }
-    .color-green  { background: #1e8e3e; }
-    .color-pink   { background: #d01884; }
-    .color-purple { background: #a142f4; }
-    .color-cyan   { background: #007b83; }
-    .color-orange { background: #e37400; }
-    .color-grey   { background: #80868b; }
-
-    #search {
-      display: block;
-      width: 100%;
-      padding: 6px 10px;
-      font-size: 13px;
-      border: 1px solid #dee2e6;
-      border-radius: 6px;
-      outline: none;
-      margin-bottom: 8px;
-      background: #fff;
-      color: #212529;
-    }
-
-    #search:focus {
-      border-color: #4f46e5;
-      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
-    }
-
-    #shortcut-hint {
-      margin: -2px 0 8px;
-      font-size: 11px;
-      color: #6c757d;
-      line-height: 1.3;
-    }
-
-    #shortcut-hint kbd {
-      font-family: inherit;
-      font-size: 11px;
-      border: 1px solid #ced4da;
-      border-bottom-width: 2px;
-      border-radius: 4px;
-      padding: 0 4px;
-      background: #fff;
-      color: #495057;
-      white-space: nowrap;
-    }
-
+    /* ── Nav focus ───────────────────────────────────────────────────────── */
     .nav-focus {
-      outline: 2px solid #4f46e5;
+      outline: 2px solid var(--accent);
       outline-offset: -2px;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
     }
 
+    /* ── Ungrouped section ───────────────────────────────────────────────── */
     .ungrouped-li {
-      margin-top: 8px;
-      border-top: 1px solid #dee2e6 !important;
+      margin-top: 6px;
+      border-top: 1px solid var(--border) !important;
+      opacity: 0.75;
     }
 
+    /* ── Tab index badge ─────────────────────────────────────────────────── */
     .tab-index {
       display: none;
       font-size: 10px;
       font-weight: 700;
-      color: #fff;
-      background: #4f46e5;
+      color: var(--accent);
+      background: var(--accent-subtle);
+      border: 1px solid rgba(99, 102, 241, 0.3);
       border-radius: 3px;
       padding: 0 4px;
       min-width: 16px;
       height: 16px;
-      line-height: 16px;
+      line-height: 14px;
       text-align: center;
       flex-shrink: 0;
     }
+
+    /* ── Chrome tab group colour swatches ────────────────────────────────── */
+    .color-blue   { background: #4a9eff; }
+    .color-red    { background: #ff5f5f; }
+    .color-yellow { background: #fbbf24; }
+    .color-green  { background: #34d399; }
+    .color-pink   { background: #f472b6; }
+    .color-purple { background: #a78bfa; }
+    .color-cyan   { background: #22d3ee; }
+    .color-orange { background: #fb923c; }
+    .color-grey   { background: #6b7280; }
   </style>
 </head>
 <body>
@@ -260,12 +365,21 @@
 
   <div class="content">
     <p id="status">Loading…</p>
-    <input type="search" id="search" placeholder="Search groups and tabs…" autocomplete="off" />
+
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <input type="search" id="search" placeholder="Search groups and tabs…" autocomplete="off" />
+    </div>
+
     <p id="shortcut-hint" aria-label="Popup shortcuts: Control Shift left bracket folds all groups, Control Shift right bracket unfolds all groups, and Control Shift G focuses the browser tab bar.">
       <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>[</kbd> fold all ·
       <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>]</kbd> unfold all ·
       <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> focus tab bar
     </p>
+
     <ul id="groups-list"></ul>
     <button id="regroup-btn">Regroup Tabs Now</button>
   </div>
