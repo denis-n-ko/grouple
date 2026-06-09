@@ -254,7 +254,7 @@ function setTabIndex(tabItem, index) {
   }
   if (index <= 9) {
     badge.textContent = String(index);
-    badge.style.display = '';
+    badge.style.display = 'inline-block';
   } else {
     badge.style.display = 'none';
   }
