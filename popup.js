@@ -100,6 +100,7 @@ function buildGroupItem(group, groupTabs) {
     const tabItem = document.createElement('li');
     tabItem.className = 'tab-item' + (tab.active ? ' active-tab' : '');
     tabItem.dataset.tabTitle = tab.title || tab.url || '';
+    tabItem.dataset.tabUrl = tab.url || '';
 
     const favicon = document.createElement('img');
     favicon.className = 'tab-favicon';
@@ -296,7 +297,8 @@ function filterList(query) {
     } else {
       let anyMatch = false;
       tabItems.forEach(t => {
-        const match = (t.dataset.tabTitle || '').toLowerCase().includes(q);
+        const match = (t.dataset.tabTitle || '').toLowerCase().includes(q) ||
+                      (t.dataset.tabUrl || '').toLowerCase().includes(q);
         t.style.display = match ? '' : 'none';
         if (match) {
           anyMatch = true;
