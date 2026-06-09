@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Stamp version into manifest
+        run: |
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${{ steps.version.outputs.version }}\"/" manifest.json
+
+      - name: Package extension
+        run: |
+          zip -r "auto-tab-groups-${{ github.ref_name }}.zip" \
+            manifest.json background.js popup.html popup.js icons/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Auto Tab Groups ${{ github.ref_name }}
+          files: auto-tab-groups-${{ github.ref_name }}.zip
+          generate_release_notes: true
