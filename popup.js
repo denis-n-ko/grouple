@@ -5,6 +5,8 @@
 let navList  = [];
 let navIndex = -1;
 let currentActiveGroupId = null;
+
+let currentWindowId = null;
 let searchIndexedTabs = [];
 
 const STORAGE_GROUP_ORDER_KEY = 'groupOrder';
@@ -164,6 +166,7 @@ async function renderGroups() {
   try {
     const currentWindow = await chrome.windows.getCurrent();
     const windowId = currentWindow.id;
+    currentWindowId = windowId;
 
     const [tabs, groups] = await Promise.all([
       chrome.tabs.query({ windowId }),
@@ -470,21 +473,22 @@ document.addEventListener('keydown', (e) => {
   const searchEl = document.getElementById('search');
   const onSearch = document.activeElement === searchEl;
 
-  if (e.ctrlKey && e.shiftKey && e.key === '[') {
+  if (e.ctrlKey && e.shiftKey && e.code === 'BracketLeft') {
     e.preventDefault();
     expandCollapseAll(false);
     return;
   }
 
-  if (e.ctrlKey && e.shiftKey && e.key === ']') {
+  if (e.ctrlKey && e.shiftKey && e.code === 'BracketRight') {
     e.preventDefault();
     expandCollapseAll(true);
     return;
   }
 
-  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'g') {
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyG') {
     e.preventDefault();
-    focusCurrentTabGroup();
+    if (currentWindowId !== null) chrome.windows.update(currentWindowId, { focused: true });
+    window.close();
     return;
   }
 
