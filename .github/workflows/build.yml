@@ -1,0 +1,37 @@
+name: Build Extension
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['**']
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine artifact name
+        id: name
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "artifact=auto-tab-groups-pr${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          else
+            SAFE="${{ github.ref_name }}"
+            SAFE="${SAFE//\//-}"
+            SAFE="${SAFE//#/-}"
+            echo "artifact=auto-tab-groups-${SAFE}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package extension
+        run: |
+          zip -r "${{ steps.name.outputs.artifact }}.zip" \
+            manifest.json background.js popup.html popup.js icons/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.name.outputs.artifact }}
+          path: ${{ steps.name.outputs.artifact }}.zip
+          retention-days: 30
