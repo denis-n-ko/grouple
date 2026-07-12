@@ -176,6 +176,54 @@ chrome.tabs.onDetached.addListener((tabId, detachInfo) => {
   scheduleRegroup(detachInfo.oldWindowId);
 });
 
+// ── Global keyboard commands ─────────────────────────────────────────────────
+// Bound in manifest.json "commands"; users can rebind at brave://extensions/shortcuts.
+
+/**
+ * Collapses or expands every tab group in the last-focused window.
+ * When collapsing, the group holding the active tab is handled last so the
+ * browser only has to re-activate a tab once; if that final collapse is
+ * rejected (e.g. no other tab to activate), the group is left open.
+ */
+async function setAllGroupsCollapsed(collapsed) {
+  const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!activeTab) return;
+
+  const groups = await chrome.tabGroups.query({ windowId: activeTab.windowId });
+  const ordered = collapsed
+    ? [...groups.filter(g => g.id !== activeTab.groupId),
+       ...groups.filter(g => g.id === activeTab.groupId)]
+    : groups;
+
+  for (const group of ordered) {
+    if (group.collapsed === collapsed) continue;
+    await chrome.tabGroups.update(group.id, { collapsed }).catch(console.error);
+  }
+}
+
+/** Expands the active tab's group and collapses all other groups in its window. */
+async function focusActiveTabGroup() {
+  const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!activeTab) return;
+
+  const groups = await chrome.tabGroups.query({ windowId: activeTab.windowId });
+  for (const group of groups) {
+    const shouldCollapse = group.id !== activeTab.groupId;
+    if (group.collapsed === shouldCollapse) continue;
+    await chrome.tabGroups.update(group.id, { collapsed: shouldCollapse }).catch(console.error);
+  }
+}
+
+chrome.commands.onCommand.addListener((command) => {
+  if (command === 'fold-all-groups') {
+    setAllGroupsCollapsed(true).catch(console.error);
+  } else if (command === 'unfold-all-groups') {
+    setAllGroupsCollapsed(false).catch(console.error);
+  } else if (command === 'focus-active-group') {
+    focusActiveTabGroup().catch(console.error);
+  }
+});
+
 // ── Message listener (from popup) ───────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

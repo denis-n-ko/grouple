@@ -11,6 +11,27 @@
         "mac": "Command+Shift+E"
       },
       "description": "Open the Auto Tab Groups popup"
+    },
+    "fold-all-groups": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Comma",
+        "mac": "MacCtrl+Shift+Comma"
+      },
+      "description": "Fold (collapse) all tab groups in the current window"
+    },
+    "unfold-all-groups": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Period",
+        "mac": "MacCtrl+Shift+Period"
+      },
+      "description": "Unfold (expand) all tab groups in the current window"
+    },
+    "focus-active-group": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+U",
+        "mac": "MacCtrl+Shift+G"
+      },
+      "description": "Unfold the active tab's group and fold all others"
     }
   },
   "background": {

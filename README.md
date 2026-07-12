@@ -12,6 +12,7 @@ All tabs pointing to `github.com` end up in one group, all tabs pointing to `sta
 - New tabs and browser-internal pages (`chrome://`, `about:blank`, etc.) are **not** grouped.
 - Each domain group gets a deterministic colour (the same domain always gets the same colour).
 - A small popup shows a live summary of current groups and a **Regroup Tabs Now** button.
+- Global shortcuts to fold/unfold all tab groups in the tab strip and focus the active tab's group.
 - Popup shortcuts for folding/unfolding all groups and jumping to the current tab's group.
 - Manual popup group ordering (buttons and keyboard shortcuts), persisted between popup opens.
 - Works across all open windows.
@@ -49,6 +50,21 @@ For each window, the grouping algorithm:
 | `tabs`       | Read tab URLs and move tabs into groups |
 | `tabGroups`  | Create, update, and query tab groups |
 | `storage`    | Persist popup group order |
+
+---
+
+## Global Keyboard Shortcuts
+
+Work anywhere in the browser (no popup needed) and act on the real tab groups in the tab strip. Defaults below; rebind them at `brave://extensions/shortcuts` (or `chrome://extensions/shortcuts`).
+
+| Command | Windows / Linux | macOS |
+|---|---|---|
+| Open the popup | `Alt+Shift+G` | `Cmd+Shift+E` |
+| Fold all tab groups in the current window | `Ctrl+Shift+,` | `Ctrl+Shift+,` |
+| Unfold all tab groups in the current window | `Ctrl+Shift+.` | `Ctrl+Shift+.` |
+| Focus active group (unfold it, fold the rest) | `Ctrl+Shift+U` | `Ctrl+Shift+G` |
+
+> The commands API does not allow `[` / `]` keys, so the global fold/unfold shortcuts use `,` / `.` instead. If a shortcut does nothing after updating, check `brave://extensions/shortcuts` — the browser skips suggested keys that clash with an existing binding.
 
 ---
 
