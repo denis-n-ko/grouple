@@ -271,6 +271,86 @@
     .tab-item:hover .tab-close { display: block; }
     .tab-close:hover { background: var(--close-hover-bg); color: var(--close-hover-fg); }
 
+    /* ── Settings ────────────────────────────────────────────────────────── */
+    #settings-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      margin-left: auto;
+      transition: background 0.12s, color 0.12s;
+    }
+
+    #settings-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+    #settings-btn svg { width: 16px; height: 16px; display: block; }
+
+    #settings-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #settings-panel.open { max-height: 260px; margin-bottom: 10px; }
+
+    #settings-panel-inner {
+      padding: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+
+    #settings-panel label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    #no-merge-domains {
+      display: block;
+      width: 100%;
+      height: 70px;
+      resize: vertical;
+      padding: 7px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      outline: none;
+      background: var(--surface-raised);
+      color: var(--text-primary);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    #no-merge-domains:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-subtle);
+    }
+
+    #settings-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    #save-settings-btn {
+      margin-top: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #save-settings-btn:hover { background: var(--accent-hover); }
+
     /* ── Regroup button ──────────────────────────────────────────────────── */
     #regroup-btn {
       width: 100%;
@@ -361,9 +441,24 @@
   <header>
     <img src="icons/icon48.png" alt="icon" />
     <h1>Auto Tab Groups</h1>
+    <button id="settings-btn" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
   </header>
 
   <div class="content">
+    <div id="settings-panel">
+      <div id="settings-panel-inner">
+        <label for="no-merge-domains">Domains to keep separate by subdomain</label>
+        <textarea id="no-merge-domains" placeholder="inbit.org"></textarea>
+        <p id="settings-hint">One domain per line. Subdomains of these (e.g. gitlab.inbit.org, privatebin.inbit.org) get their own groups instead of merging into inbit.org.</p>
+        <button id="save-settings-btn">Save</button>
+      </div>
+    </div>
+
     <p id="status">Loading…</p>
 
     <div class="search-wrap">

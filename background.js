@@ -42,16 +42,43 @@ const MULTI_PART_TLDS = new Set([
 ]);
 
 /**
+ * User-configured domains (set via the popup) that should behave like an
+ * entry in MULTI_PART_TLDS: subdomains under them keep one extra label
+ * instead of collapsing together, so e.g. gitlab.inbit.org and
+ * privatebin.inbit.org stay in separate groups rather than merging into
+ * inbit.org. Populated from chrome.storage.local; see settingsReady below.
+ */
+let customNoMergeDomains = new Set();
+const STORAGE_NO_MERGE_KEY = 'noMergeDomains';
+
+function normalizeNoMergeList(list) {
+  return Array.isArray(list) ? list.map(d => String(d).trim().toLowerCase()).filter(Boolean) : [];
+}
+
+const settingsReady = chrome.storage.local.get({ [STORAGE_NO_MERGE_KEY]: [] }).then((data) => {
+  customNoMergeDomains = new Set(normalizeNoMergeList(data[STORAGE_NO_MERGE_KEY]));
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes[STORAGE_NO_MERGE_KEY]) {
+    customNoMergeDomains = new Set(normalizeNoMergeList(changes[STORAGE_NO_MERGE_KEY].newValue));
+    scheduleRegroup(null);
+  }
+});
+
+/**
  * Strips subdomains from a hostname, returning the registrable base domain
  * (mail.google.com → google.com). IP addresses and single-label hosts
- * (localhost) are returned unchanged.
+ * (localhost) are returned unchanged. Domains in MULTI_PART_TLDS or the
+ * user's custom no-merge list keep one extra label instead of collapsing.
  */
 function getBaseDomain(hostname) {
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return hostname;
   const parts = hostname.split('.');
   if (parts.length <= 2) return hostname;
   const lastTwo = parts.slice(-2).join('.');
-  return parts.slice(MULTI_PART_TLDS.has(lastTwo) ? -3 : -2).join('.');
+  const keepExtra = MULTI_PART_TLDS.has(lastTwo) || customNoMergeDomains.has(lastTwo);
+  return parts.slice(keepExtra ? -3 : -2).join('.');
 }
 
 /**
@@ -83,6 +110,7 @@ function getDomain(url) {
  *       – Create a new group, then set its title and colour.
  */
 async function regroupTabsInWindow(windowId) {
+  await settingsReady;
   const tabs = await chrome.tabs.query({ windowId });
 
   // ── 1. Categorise tabs ──────────────────────────────────────────────────

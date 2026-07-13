@@ -10,6 +10,7 @@ let currentWindowId = null;
 let searchIndexedTabs = [];
 
 const STORAGE_GROUP_ORDER_KEY = 'groupOrder';
+const STORAGE_NO_MERGE_KEY = 'noMergeDomains';
 const DEFAULT_GROUP_TITLE = '(unnamed)';
 const DEFAULT_GROUP_COLOR = 'grey';
 
@@ -615,6 +616,33 @@ document.getElementById('search').addEventListener('input', (e) => {
   filterList(e.target.value);
 });
 
+// ── Settings panel ───────────────────────────────────────────────────────────
+async function loadNoMergeDomains() {
+  const data = await chrome.storage.local.get({ [STORAGE_NO_MERGE_KEY]: [] });
+  const domains = Array.isArray(data[STORAGE_NO_MERGE_KEY]) ? data[STORAGE_NO_MERGE_KEY] : [];
+  document.getElementById('no-merge-domains').value = domains.join('\n');
+}
+
+document.getElementById('settings-btn').addEventListener('click', () => {
+  document.getElementById('settings-panel').classList.toggle('open');
+});
+
+document.getElementById('save-settings-btn').addEventListener('click', async () => {
+  const raw = document.getElementById('no-merge-domains').value;
+  const domains = raw.split('\n').map(d => d.trim().toLowerCase()).filter(Boolean);
+  await chrome.storage.local.set({ [STORAGE_NO_MERGE_KEY]: domains });
+
+  const btn = document.getElementById('save-settings-btn');
+  const original = btn.textContent;
+  btn.textContent = 'Saved ✓';
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.textContent = original;
+    btn.disabled = false;
+  }, 1200);
+});
+
 // Render on open, then focus search bar
 renderGroups();
+loadNoMergeDomains();
 document.getElementById('search').focus();
