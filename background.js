@@ -1,7 +1,8 @@
 /**
  * Auto Tab Groups – background service worker
  *
- * Groups all open tabs in each window by their hostname.
+ * Groups all open tabs in each window by their base domain, so tabs from
+ * different subdomains of the same site land in one group.
  * Tabs without an http/https URL (new-tab, chrome://, etc.) are left ungrouped.
  */
 
@@ -26,7 +27,35 @@ function getColorForDomain(domain) {
 }
 
 /**
- * Returns the hostname for a URL string, or null if the URL is not
+ * Common two-part public suffixes so e.g. foo.co.uk collapses to foo.co.uk,
+ * not co.uk. Not the full Public Suffix List — just the frequent cases.
+ */
+const MULTI_PART_TLDS = new Set([
+  'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'me.uk', 'net.uk',
+  'com.au', 'net.au', 'org.au', 'edu.au', 'gov.au',
+  'co.nz', 'net.nz', 'org.nz',
+  'co.jp', 'ne.jp', 'or.jp', 'ac.jp', 'go.jp',
+  'com.br', 'net.br', 'org.br',
+  'co.in', 'net.in', 'org.in',
+  'com.mx', 'com.ar', 'com.tr', 'com.cn', 'com.tw', 'com.sg', 'com.hk',
+  'co.za', 'co.kr', 'com.ua', 'co.il', 'com.pl',
+]);
+
+/**
+ * Strips subdomains from a hostname, returning the registrable base domain
+ * (mail.google.com → google.com). IP addresses and single-label hosts
+ * (localhost) are returned unchanged.
+ */
+function getBaseDomain(hostname) {
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return hostname;
+  const parts = hostname.split('.');
+  if (parts.length <= 2) return hostname;
+  const lastTwo = parts.slice(-2).join('.');
+  return parts.slice(MULTI_PART_TLDS.has(lastTwo) ? -3 : -2).join('.');
+}
+
+/**
+ * Returns the base domain for a URL string, or null if the URL is not
  * a regular http/https page (new-tab, chrome://, etc.).
  */
 function getDomain(url) {
@@ -34,7 +63,7 @@ function getDomain(url) {
   try {
     const { protocol, hostname } = new URL(url);
     if (protocol !== 'http:' && protocol !== 'https:') return null;
-    return hostname || null;
+    return hostname ? getBaseDomain(hostname) : null;
   } catch {
     return null;
   }
