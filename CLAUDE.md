@@ -32,6 +32,7 @@ Renders the current tab/group state on open. Reads from `chrome.tabs` and `chrom
 
 - **Groups require ≥ 2 tabs**: a domain with only one tab is always left ungrouped. This is intentional.
 - **Non-http tabs are never grouped**: `chrome://`, `about:blank`, `file://`, etc. are always ungrouped.
+- **Pinned tabs are ignored**: `regroupTabsInWindow` skips them entirely — they are never grouped, never ungrouped, and don't count toward the ≥ 2 threshold for their domain.
 - **Group identity is title-based**: `regroupTabsInWindow` matches existing groups by their `title` string. Renaming a group in the browser will cause a new duplicate group to be created on the next regroup.
 - **Service worker lifecycle**: MV3 service workers can be terminated by the browser when idle. The debounce timer (`debounceTimer`) and `pendingWindows` set are in-memory and will be reset if the worker is killed mid-debounce — this is an accepted trade-off.
 - **No CSS framework**: all styles are inline in `popup.html` using CSS custom properties (`--bg`, `--surface`, `--accent`, etc.) defined in `:root`. The dark theme is the default; there is no light/dark toggle.

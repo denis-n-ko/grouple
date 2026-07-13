@@ -73,7 +73,9 @@ function getDomain(url) {
  * Re-groups all tabs in the given window by domain.
  *
  * Algorithm:
- *  1. Build a domain → tabIds map from the current tab list.
+ *  1. Build a domain → tabIds map from the current tab list, ignoring pinned
+ *     tabs entirely (they are never grouped and never counted for the ≥ 2
+ *     threshold).
  *  2. Ungroup any tab whose URL doesn't have an http/https domain, and any
  *     tab that is the sole tab for its domain (groups need ≥ 2 tabs).
  *  3. For each domain that has ≥ 2 tabs:
@@ -88,6 +90,8 @@ async function regroupTabsInWindow(windowId) {
   const noGroupTabIds = [];
 
   for (const tab of tabs) {
+    if (tab.pinned) continue; // pinned tabs are left exactly as the user put them
+
     const domain = getDomain(tab.pendingUrl || tab.url);
     if (domain) {
       if (!domainToTabIds.has(domain)) domainToTabIds.set(domain, []);
@@ -181,8 +185,12 @@ chrome.tabs.onCreated.addListener((tab) => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  // Re-group when the URL changes or the page finishes loading.
-  if (changeInfo.url !== undefined || changeInfo.status === 'complete') {
+  // Re-group when the URL changes, the page finishes loading, or the tab is
+  // pinned/unpinned (pinned tabs are excluded from grouping, so toggling it
+  // changes whether the tab's domain still has ≥ 2 groupable tabs).
+  if (changeInfo.url !== undefined
+    || changeInfo.status === 'complete'
+    || changeInfo.pinned !== undefined) {
     scheduleRegroup(tab.windowId);
   }
 });
