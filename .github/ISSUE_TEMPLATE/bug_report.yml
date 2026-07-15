@@ -1,0 +1,44 @@
+name: Bug report
+description: Report unexpected extension behavior.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thank you for helping improve Auto Tab Groups.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the unexpected behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: "Chrome 136 on macOS 15"
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Include screenshots or relevant console errors if available. Do not include sensitive URLs.

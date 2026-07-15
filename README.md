@@ -1,92 +1,72 @@
 # Auto Tab Groups
 
-A Brave / Chrome browser extension that **automatically groups open tabs by domain name**.
+[![Build Extension](https://github.com/denis-n-ko/auto-tab-groups/actions/workflows/build.yml/badge.svg)](https://github.com/denis-n-ko/auto-tab-groups/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-All tabs pointing to `github.com` end up in one group, all tabs pointing to `stackoverflow.com` in another, and so on.
+Auto Tab Groups is a Manifest V3 extension for Chrome and Brave that automatically organizes unpinned tabs into browser tab groups by domain.
 
----
+Tabs from `mail.google.com` and `docs.google.com`, for example, are grouped together as `google.com`. Groups are updated as tabs are opened, navigated, closed, and moved.
 
 ## Features
 
-- Groups every open tab by its hostname automatically.
-- New tabs and browser-internal pages (`chrome://`, `about:blank`, etc.) are **not** grouped.
-- Each domain group gets a deterministic colour (the same domain always gets the same colour).
-- A small popup shows a live summary of current groups and a **Regroup Tabs Now** button.
-- Global shortcuts to fold/unfold all tab groups in the tab strip and focus the active tab's group.
-- Popup shortcuts for folding/unfolding all groups and jumping to the current tab's group.
-- Manual popup group ordering (buttons and keyboard shortcuts), persisted between popup opens.
-- Works across all open windows.
+- Groups two or more unpinned `http`/`https` tabs that share a base domain.
+- Merges subdomains by default, with support for common multi-part TLDs such as `co.uk`.
+- Lets you keep selected domains' subdomains separate from the popup settings.
+- Assigns each domain a deterministic tab-group colour.
+- Provides a searchable popup with group ordering, keyboard navigation, and quick tab closing.
+- Includes browser-wide shortcuts to collapse, expand, or focus tab groups.
+- Works independently in every open browser window.
 
----
-
-## Installation (Developer Mode)
+## Install from source
 
 1. Clone or download this repository.
-2. Open Brave (or Chrome) and navigate to `brave://extensions` (or `chrome://extensions`).
-3. Enable **Developer mode** (toggle in the top-right corner).
-4. Click **Load unpacked** and select the root folder of this repository.
-5. The extension is now active — open a few tabs on the same domain and watch them group automatically.
+2. Open `chrome://extensions` in Chrome or `brave://extensions` in Brave.
+3. Enable **Developer mode**.
+4. Select **Load unpacked** and choose this repository's root directory.
+5. Open at least two unpinned tabs for the same domain.
 
----
+After changing `background.js` or `manifest.json`, use the refresh button on the extension card. Changes to the popup take effect the next time it is opened.
 
-## How It Works
+## Keyboard shortcuts
 
-The background service worker listens for `tabs.onCreated`, `tabs.onUpdated`, `tabs.onRemoved`, `tabs.onMoved`, `tabs.onAttached`, and `tabs.onDetached` events.  
-Whenever any of these fires, tab regrouping is scheduled with a short debounce (400 ms) to avoid redundant calls during rapid tab operations.
-
-For each window, the grouping algorithm:
-
-1. Extracts the `hostname` from every `http`/`https` tab URL.
-2. Collects all tab IDs that share the same hostname.
-3. Reuses an existing tab group whose title matches the hostname, or creates a new one.
-4. Tabs without an http/https URL are ungrouped.
-
----
-
-## Permissions
-
-| Permission   | Reason |
-|---|---|
-| `tabs`       | Read tab URLs and move tabs into groups |
-| `tabGroups`  | Create, update, and query tab groups |
-| `storage`    | Persist popup group order |
-
----
-
-## Global Keyboard Shortcuts
-
-Work anywhere in the browser (no popup needed) and act on the real tab groups in the tab strip. Defaults below; rebind them at `brave://extensions/shortcuts` (or `chrome://extensions/shortcuts`).
+Configure or resolve shortcut conflicts at `chrome://extensions/shortcuts` or `brave://extensions/shortcuts`.
 
 | Command | Windows / Linux | macOS |
-|---|---|---|
-| Open the popup | `Alt+Shift+G` | `Cmd+Shift+E` |
-| Fold all tab groups in the current window | `Ctrl+Shift+,` | `Ctrl+Shift+,` |
-| Unfold all tab groups in the current window | `Ctrl+Shift+.` | `Ctrl+Shift+.` |
-| Focus active group (unfold it, fold the rest) | `Ctrl+Shift+U` | `Ctrl+Shift+G` |
+| --- | --- | --- |
+| Open the popup | `Alt`+`Shift`+`G` | `Cmd`+`Shift`+`E` |
+| Collapse all groups | `Ctrl`+`Shift`+`,` | `Ctrl`+`Shift`+`,` |
+| Expand all groups | `Ctrl`+`Shift`+`.` | `Ctrl`+`Shift`+`.` |
+| Focus the active group | `Ctrl`+`Shift`+`U` | `Ctrl`+`Shift`+`G` |
 
-> The commands API does not allow `[` / `]` keys, so the global fold/unfold shortcuts use `,` / `.` instead. If a shortcut does nothing after updating, check `brave://extensions/shortcuts` — the browser skips suggested keys that clash with an existing binding.
+When the popup is open, use `Ctrl`+`Shift`+`[` and `Ctrl`+`Shift`+`]` to collapse and expand visible groups, arrow keys to navigate, and `Enter` to open a group or activate a tab.
 
----
+## Behavior and limitations
 
-## Popup Keyboard Shortcuts
+- A domain needs at least two eligible tabs to form a group; a lone tab is left ungrouped.
+- Pinned tabs and non-web pages such as `chrome://`, `about:blank`, and `file://` are never grouped.
+- A manually renamed browser group is no longer recognized as the domain group, so a later regroup can create a new group.
+- The extension uses a practical list of common multi-part TLDs, not the full Public Suffix List.
 
-When the popup is open:
+## Privacy and permissions
 
-- `Ctrl+Shift+[` — Fold all visible groups
-- `Ctrl+Shift+]` — Unfold all visible groups
-- `Ctrl+Shift+G` — Focus the group containing the active tab
-- `Alt+↑ / Alt+↓` — Move focused group up/down in popup order
-- `Ctrl+Shift+M` — Move focused group below the first visible group matching the current search text
+Auto Tab Groups has no network requests, analytics, accounts, or remote code. It processes tab URLs locally in the browser solely to determine their domains.
 
----
+| Permission | Purpose |
+| --- | --- |
+| `tabs` | Read tab URLs and arrange tabs into groups. |
+| `tabGroups` | Create, update, and inspect browser tab groups. |
+| `storage` | Save popup group order and domain-separation preferences locally. |
 
-## Project Structure
+## Development
 
-```
-auto-tab-groups/
-├── manifest.json   # Extension manifest (MV3)
-├── background.js   # Service worker – core grouping logic
-├── popup.html      # Toolbar popup UI
-├── popup.js        # Popup logic
-└── icons/          # Extension icons (16 × 16, 48 × 48, 128 × 128)
-```
+This project uses plain HTML, CSS, and JavaScript with no dependencies, build step, or automated test suite. Load it unpacked as described above and test changes in Chrome or Brave.
+
+The GitHub Actions workflow performs syntax and manifest validation, then packages the extension as a ZIP artifact. Tagged releases publish a ready-to-load ZIP with the version taken from the tag.
+
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md), follow the [Code of Conduct](CODE_OF_CONDUCT.md), and report security issues through the process in [SECURITY.md](SECURITY.md).
+
+## License
+
+Distributed under the [MIT License](LICENSE).

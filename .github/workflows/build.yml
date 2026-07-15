@@ -12,6 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate extension files
+        run: |
+          node --check background.js
+          node --check popup.js
+          node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8'))"
+
       - name: Determine artifact name
         id: name
         run: |
