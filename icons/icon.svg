@@ -1,0 +1,19 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#818cf8"/>
+      <stop offset="0.55" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#4f46e5"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="128" height="128" rx="30" fill="url(#bg)"/>
+
+  <!-- grouping bracket -->
+  <rect x="26" y="34" width="12" height="60" rx="6" fill="#ffffff"/>
+
+  <!-- three grouped tab rows -->
+  <rect x="48" y="34" width="54" height="14" rx="7" fill="#ffffff"/>
+  <rect x="48" y="57" width="54" height="14" rx="7" fill="#ffffff" fill-opacity="0.82"/>
+  <rect x="48" y="80" width="54" height="14" rx="7" fill="#ffffff" fill-opacity="0.64"/>
+</svg>
