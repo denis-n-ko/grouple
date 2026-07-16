@@ -1,4 +1,4 @@
-# Contributing to Auto Tab Groups
+# Contributing to Grouple
 
 Thanks for contributing.
 

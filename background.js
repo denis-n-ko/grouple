@@ -1,5 +1,5 @@
 /**
- * Auto Tab Groups – background service worker
+ * Grouple – background service worker
  *
  * Groups all open tabs in each window by their base domain, so tabs from
  * different subdomains of the same site land in one group.

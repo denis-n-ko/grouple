@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Auto Tab Groups",
+  "name": "Grouple",
   "version": "1.0.0",
   "description": "Automatically groups open tabs by domain name",
   "permissions": ["tabs", "tabGroups", "storage"],
@@ -10,7 +10,7 @@
         "default": "Alt+Shift+G",
         "mac": "Command+Shift+E"
       },
-      "description": "Open the Auto Tab Groups popup"
+      "description": "Open the Grouple popup"
     },
     "fold-all-groups": {
       "suggested_key": {
@@ -39,7 +39,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Auto Tab Groups",
+    "default_title": "Grouple",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

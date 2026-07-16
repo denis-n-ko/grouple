@@ -5,7 +5,7 @@ labels: ["bug"]
 body:
   - type: markdown
     attributes:
-      value: Thank you for helping improve Auto Tab Groups.
+      value: Thank you for helping improve Grouple.
   - type: textarea
     id: summary
     attributes:

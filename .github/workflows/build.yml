@@ -22,12 +22,12 @@ jobs:
         id: name
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "artifact=auto-tab-groups-pr${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+            echo "artifact=grouple-pr${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
           else
             SAFE="${{ github.ref_name }}"
             SAFE="${SAFE//\//-}"
             SAFE="${SAFE//#/-}"
-            echo "artifact=auto-tab-groups-${SAFE}" >> "$GITHUB_OUTPUT"
+            echo "artifact=grouple-${SAFE}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Package extension

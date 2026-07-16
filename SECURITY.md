@@ -6,7 +6,7 @@ Security fixes are provided for the latest version on the `main` branch and the 
 
 ## Reporting a vulnerability
 
-Please do not report security vulnerabilities in public issues. Use [GitHub's private vulnerability reporting](https://github.com/denis-n-ko/auto-tab-groups/security/advisories/new) and include:
+Please do not report security vulnerabilities in public issues. Use [GitHub's private vulnerability reporting](https://github.com/denis-n-ko/grouple/security/advisories/new) and include:
 
 - A description of the issue and its potential impact.
 - Reproduction steps or a proof of concept.

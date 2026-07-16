@@ -1,9 +1,9 @@
-# Auto Tab Groups
+# Grouple
 
-[![Build Extension](https://github.com/denis-n-ko/auto-tab-groups/actions/workflows/build.yml/badge.svg)](https://github.com/denis-n-ko/auto-tab-groups/actions/workflows/build.yml)
+[![Build Extension](https://github.com/denis-n-ko/grouple/actions/workflows/build.yml/badge.svg)](https://github.com/denis-n-ko/grouple/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Auto Tab Groups is a Manifest V3 extension for Chrome and Brave that automatically organizes unpinned tabs into browser tab groups by domain.
+Grouple is a Manifest V3 extension for Chrome and Brave that automatically organizes unpinned tabs into browser tab groups by domain.
 
 Tabs from `mail.google.com` and `docs.google.com`, for example, are grouped together as `google.com`. Groups are updated as tabs are opened, navigated, closed, and moved.
 
@@ -49,7 +49,7 @@ When the popup is open, use `Ctrl`+`Shift`+`[` and `Ctrl`+`Shift`+`]` to collaps
 
 ## Privacy and permissions
 
-Auto Tab Groups has no network requests, analytics, accounts, or remote code. It processes tab URLs locally in the browser solely to determine their domains.
+Grouple has no network requests, analytics, accounts, or remote code. It processes tab URLs locally in the browser solely to determine their domains.
 
 | Permission | Purpose |
 | --- | --- |
