@@ -32,7 +32,7 @@
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 13px;
-      width: 380px;
+      width: 348px;
       background: var(--bg);
       color: var(--text-primary);
     }
@@ -41,13 +41,15 @@
     header {
       background: linear-gradient(135deg, #1a1c30 0%, #13141f 100%);
       border-bottom: 1px solid var(--border);
-      padding: 13px 16px;
+      padding: 10px 12px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
-    header img { width: 22px; height: 22px; filter: drop-shadow(0 0 6px var(--accent-glow)); }
+    header img { width: 20px; height: 20px; filter: drop-shadow(0 0 6px var(--accent-glow)); }
+
+    .header-copy { min-width: 0; }
 
     header h1 {
       font-size: 14px;
@@ -59,20 +61,36 @@
       background-clip: text;
     }
 
+    .header-subtitle {
+      margin-top: 1px;
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
     /* ── Content ─────────────────────────────────────────────────────────── */
-    .content { padding: 12px 14px; }
+    .content { padding: 10px 12px 12px; }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
 
     #status {
       font-size: 11px;
       color: var(--text-muted);
-      margin-bottom: 10px;
       letter-spacing: 0.02em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     /* ── Search ──────────────────────────────────────────────────────────── */
     .search-wrap {
       position: relative;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
     }
 
     .search-icon {
@@ -89,7 +107,7 @@
     #search {
       display: block;
       width: 100%;
-      padding: 7px 10px 7px 30px;
+      padding: 7px 9px 7px 29px;
       font-size: 13px;
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
@@ -107,7 +125,7 @@
     }
 
     #shortcut-hint {
-      margin: 0 0 10px;
+      margin: 0 0 8px;
       font-size: 10px;
       color: var(--text-muted);
       line-height: 1.4;
@@ -128,8 +146,8 @@
     /* ── Groups list ─────────────────────────────────────────────────────── */
     #groups-list {
       list-style: none;
-      margin-bottom: 12px;
-      max-height: 360px;
+      margin-bottom: 0;
+      max-height: 340px;
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: var(--border-hover) transparent;
@@ -155,13 +173,18 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 7px 8px;
+      padding: 6px 8px;
       cursor: pointer;
       user-select: none;
       transition: background 0.12s;
     }
 
     .group-header:hover { background: var(--surface-hover); }
+    .group-header:focus-visible,
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
 
     .group-move {
       border: none;
@@ -179,6 +202,24 @@
     .group-move:hover {
       background: var(--surface-raised);
       color: var(--text-primary);
+    }
+
+    .group-close {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1;
+      padding: 1px 4px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.12s, color 0.12s;
+    }
+
+    .group-close:hover {
+      background: var(--close-hover-bg);
+      color: var(--close-hover-fg);
     }
 
     .dot {
@@ -225,7 +266,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 5px 8px 5px 22px;
+      padding: 5px 8px 5px 20px;
       cursor: pointer;
       transition: background 0.1s;
     }
@@ -351,40 +392,35 @@
 
     #save-settings-btn:hover { background: var(--accent-hover); }
 
-    /* ── Regroup button ──────────────────────────────────────────────────── */
+    /* ── Compact action button ───────────────────────────────────────────── */
     #regroup-btn {
-      width: 100%;
-      padding: 9px;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: var(--radius-md);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 8px;
+      background: var(--accent-subtle);
+      color: var(--accent-hover);
+      border: 1px solid rgba(129, 140, 248, 0.25);
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 500;
-      letter-spacing: 0.01em;
-      transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
-      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
 
-    #regroup-btn:hover  {
-      background: var(--accent-hover);
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
-    }
-
-    #regroup-btn:active {
-      background: var(--accent-active);
-      transform: translateY(1px);
-      box-shadow: 0 1px 4px rgba(99, 102, 241, 0.3);
-    }
+    #regroup-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
 
     #regroup-btn:disabled {
-      background: var(--surface-raised);
+      background: var(--surface);
       color: var(--text-muted);
-      box-shadow: none;
+      border-color: var(--border);
       cursor: not-allowed;
-      transform: none;
     }
+
+    #regroup-btn svg { width: 13px; height: 13px; }
+    #regroup-btn:disabled svg { animation: spin 0.8s linear infinite; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Empty state ─────────────────────────────────────────────────────── */
     .empty {
@@ -439,9 +475,12 @@
 </head>
 <body>
   <header>
-    <img src="icons/icon48.png" alt="icon" />
-    <h1>Auto Tab Groups</h1>
-    <button id="settings-btn" title="Settings" aria-label="Settings">
+    <img src="icons/icon48.png" alt="" />
+    <div class="header-copy">
+      <h1>Auto Tab Groups</h1>
+      <p class="header-subtitle">Domain-based tab organization</p>
+    </div>
+    <button id="settings-btn" title="Settings" aria-label="Settings" aria-expanded="false" aria-controls="settings-panel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -459,7 +498,18 @@
       </div>
     </div>
 
-    <p id="status">Loading…</p>
+    <div class="toolbar">
+      <p id="status" aria-live="polite">Loading…</p>
+      <button id="regroup-btn" title="Regroup all tabs now" aria-label="Regroup all tabs now">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"></path>
+          <path d="M3 21v-5h5"></path>
+          <path d="M3 12A9 9 0 0 1 18.5 5.8L21 8"></path>
+          <path d="M21 3v5h-5"></path>
+        </svg>
+        <span id="regroup-label">Regroup</span>
+      </button>
+    </div>
 
     <div class="search-wrap">
       <svg class="search-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -469,14 +519,13 @@
       <input type="search" id="search" placeholder="Search groups and tabs…" autocomplete="off" />
     </div>
 
-    <p id="shortcut-hint" aria-label="Popup shortcuts: Control Shift left bracket folds all groups, Control Shift right bracket unfolds all groups, and Control Shift G focuses the browser tab bar.">
+    <p id="shortcut-hint" aria-label="Popup shortcuts: Control Shift left bracket folds all groups, Control Shift right bracket unfolds all groups, Control Shift G focuses the browser tab bar, and Alt or Command plus up or down arrow moves the focused group in the tab strip.">
       <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>[</kbd> fold all ·
       <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>]</kbd> unfold all ·
-      <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> focus tab bar
+      <kbd>Alt</kbd>/<kbd>⌘</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> move group
     </p>
 
     <ul id="groups-list"></ul>
-    <button id="regroup-btn">Regroup Tabs Now</button>
   </div>
 
   <script src="popup.js"></script>

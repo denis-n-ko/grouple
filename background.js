@@ -178,6 +178,7 @@ async function regroupTabsInWindow(windowId) {
 // We coalesce them into a single call per window with a small delay.
 const pendingWindows = new Set();
 let debounceTimer = null;
+const windowsWithGroupMoveInProgress = new Set();
 
 function scheduleRegroup(windowId) {
   if (windowId != null) {
@@ -230,6 +231,7 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
 });
 
 chrome.tabs.onMoved.addListener((tabId, moveInfo) => {
+  if (windowsWithGroupMoveInProgress.has(moveInfo.windowId)) return;
   scheduleRegroup(moveInfo.windowId);
 });
 
@@ -291,10 +293,64 @@ chrome.commands.onCommand.addListener((command) => {
 
 // ── Message listener (from popup) ───────────────────────────────────────────
 
+async function moveGroupInWindow(groupId, offset, windowId) {
+  if (offset !== -1 && offset !== 1) {
+    throw new Error('Group move direction must be -1 or 1.');
+  }
+
+  const tabs = (await chrome.tabs.query({ windowId })).sort((a, b) => a.index - b.index);
+  const tabsByGroupId = new Map();
+  for (const tab of tabs) {
+    if (tab.groupId === TAB_GROUP_ID_NONE) continue;
+    if (!tabsByGroupId.has(tab.groupId)) tabsByGroupId.set(tab.groupId, []);
+    tabsByGroupId.get(tab.groupId).push(tab);
+  }
+
+  const orderedGroupIds = [...tabsByGroupId.keys()].sort((a, b) =>
+    tabsByGroupId.get(a)[0].index - tabsByGroupId.get(b)[0].index
+  );
+  const sourceIndex = orderedGroupIds.indexOf(groupId);
+  const targetIndex = sourceIndex + offset;
+  if (sourceIndex === -1 || targetIndex < 0 || targetIndex >= orderedGroupIds.length) {
+    return false;
+  }
+
+  // chrome.tabGroups.move rejects any destination index that lands in the
+  // middle of another group in the current tab strip, so we can only ever
+  // target a group's first-tab index (a valid boundary). Moving a group down
+  // past the next group is equivalent to moving that next group up past this
+  // one, which lets both directions use a first-tab index.
+  const movingGroupId = offset < 0 ? groupId : orderedGroupIds[targetIndex];
+  const anchorGroupId = offset < 0 ? orderedGroupIds[targetIndex] : groupId;
+  const destinationIndex = tabsByGroupId.get(anchorGroupId)[0].index;
+
+  windowsWithGroupMoveInProgress.add(windowId);
+  try {
+    try {
+      await chrome.tabGroups.move(movingGroupId, { index: destinationIndex });
+    } catch (error) {
+      if (!String(error.message || error).includes('Tabs cannot be edited right now')) {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await chrome.tabGroups.move(movingGroupId, { index: destinationIndex });
+    }
+  } finally {
+    setTimeout(() => windowsWithGroupMoveInProgress.delete(windowId), 100);
+  }
+
+  return true;
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'regroupAll') {
     scheduleRegroup(null);
     sendResponse({ ok: true });
+  } else if (message.action === 'moveGroup') {
+    moveGroupInWindow(message.groupId, message.offset, message.windowId)
+      .then(moved => sendResponse({ ok: true, moved }))
+      .catch(error => sendResponse({ ok: false, error: error.message }));
+    return true;
   }
   return false;
 });
