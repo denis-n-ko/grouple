@@ -8,36 +8,15 @@ let currentActiveGroupId = null;
 
 let currentWindowId = null;
 let searchIndexedTabs = [];
+let isMovingGroup = false;
 
-const STORAGE_GROUP_ORDER_KEY = 'groupOrder';
 const STORAGE_NO_MERGE_KEY = 'noMergeDomains';
 const DEFAULT_GROUP_TITLE = '(unnamed)';
 const DEFAULT_GROUP_COLOR = 'grey';
 
-function getGroupKey(group) {
-  return JSON.stringify([group.title || DEFAULT_GROUP_TITLE, group.color || DEFAULT_GROUP_COLOR]);
-}
-
-async function getStoredGroupOrder() {
-  const data = await chrome.storage.local.get({ [STORAGE_GROUP_ORDER_KEY]: [] });
-  return Array.isArray(data[STORAGE_GROUP_ORDER_KEY]) ? data[STORAGE_GROUP_ORDER_KEY] : [];
-}
-
-async function saveGroupOrder(order) {
-  await chrome.storage.local.set({ [STORAGE_GROUP_ORDER_KEY]: order });
-}
-
-async function persistDomGroupOrder() {
-  const listEl = document.getElementById('groups-list');
-  const order = [...listEl.querySelectorAll('li.group-li:not(.ungrouped-li) .group-header')]
-    .map(header => header.dataset.groupKey)
-    .filter(Boolean);
-  await saveGroupOrder(order);
-}
-
 // ── Build a group / ungrouped row ────────────────────────────────────────────
 function buildGroupItem(group, groupTabs) {
-  const { id, title, color, key } = group;
+  const { id, title, color } = group;
   const isUngrouped = color === null;
   const count = groupTabs.length;
   const li = document.createElement('li');
@@ -48,7 +27,9 @@ function buildGroupItem(group, groupTabs) {
   header.className = 'group-header';
   header.dataset.groupTitle = title;
   header.dataset.groupId = String(id);
-  if (key) header.dataset.groupKey = key;
+  header.setAttribute('role', 'button');
+  header.tabIndex = 0;
+  header.setAttribute('aria-expanded', 'false');
 
   if (!isUngrouped) {
     const dot = document.createElement('span');
@@ -74,23 +55,53 @@ function buildGroupItem(group, groupTabs) {
   if (!isUngrouped) {
     const moveUpBtn = document.createElement('button');
     moveUpBtn.className = 'group-move';
-    moveUpBtn.title = 'Move group up (Alt+↑)';
+    moveUpBtn.title = 'Move group up in the tab strip (Alt+↑)';
+    moveUpBtn.setAttribute('aria-label', `Move ${title} group up in the tab strip`);
     moveUpBtn.textContent = '↑';
     moveUpBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      await moveGroupByOffset(header, -1);
+      try {
+        await moveGroupInTabStrip(header, -1);
+      } catch (err) {
+        document.getElementById('status').textContent = 'Could not move group.';
+        console.error('Failed to move group:', err);
+      }
     });
 
     const moveDownBtn = document.createElement('button');
     moveDownBtn.className = 'group-move';
-    moveDownBtn.title = 'Move group down (Alt+↓)';
+    moveDownBtn.title = 'Move group down in the tab strip (Alt+↓)';
+    moveDownBtn.setAttribute('aria-label', `Move ${title} group down in the tab strip`);
     moveDownBtn.textContent = '↓';
     moveDownBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      await moveGroupByOffset(header, 1);
+      try {
+        await moveGroupInTabStrip(header, 1);
+      } catch (err) {
+        document.getElementById('status').textContent = 'Could not move group.';
+        console.error('Failed to move group:', err);
+      }
     });
 
-    header.append(moveUpBtn, moveDownBtn);
+    const closeGroupBtn = document.createElement('button');
+    closeGroupBtn.className = 'group-close';
+    closeGroupBtn.textContent = '×';
+    closeGroupBtn.title = `Close all ${count} tabs in this group`;
+    closeGroupBtn.setAttribute('aria-label', `Close all ${count} tabs in ${title}`);
+    closeGroupBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const tabWord = count === 1 ? 'tab' : 'tabs';
+      if (!window.confirm(`Close all ${count} ${tabWord} in ${title}?`)) return;
+      try {
+        await chrome.tabs.remove(groupTabs.map(tab => tab.id));
+        await renderGroups();
+      } catch (err) {
+        document.getElementById('status').textContent = 'Could not close group.';
+        console.error('Failed to close group:', err);
+      }
+    });
+
+    header.append(moveUpBtn, moveDownBtn, closeGroupBtn);
   }
 
   // ── Tabs list (hidden by default) ────────────────────────────────
@@ -118,6 +129,7 @@ function buildGroupItem(group, groupTabs) {
     closeBtn.className = 'tab-close';
     closeBtn.textContent = '×';
     closeBtn.title = 'Close tab';
+    closeBtn.setAttribute('aria-label', `Close ${tab.title || tab.url || 'tab'}`);
 
     closeBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -147,9 +159,29 @@ function buildGroupItem(group, groupTabs) {
 
   // ── Toggle expand/collapse on header click ───────────────────────
   header.addEventListener('click', () => {
-    const isOpen = tabsList.classList.toggle('open');
-    chevron.classList.toggle('open', isOpen);
+    setGroupExpanded(li, !tabsList.classList.contains('open'));
     buildNavList();
+  });
+  header.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      header.click();
+    } else if (isGroupMoveShortcut(event)) {
+      event.preventDefault();
+      moveGroupInTabStrip(header, event.key === 'ArrowUp' ? -1 : 1)
+        .catch(err => {
+          document.getElementById('status').textContent = 'Could not move group.';
+          console.error('Failed to move group:', err);
+        });
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      setGroupExpanded(li, true);
+      buildNavList();
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      setGroupExpanded(li, false);
+      buildNavList();
+    }
   });
 
   li.append(header, tabsList);
@@ -160,6 +192,13 @@ function buildGroupItem(group, groupTabs) {
 async function renderGroups() {
   const statusEl = document.getElementById('status');
   const listEl   = document.getElementById('groups-list');
+  const searchEl = document.getElementById('search');
+  const searchQuery = searchEl.value;
+  const expandedGroupIds = new Set(
+    [...listEl.querySelectorAll('.group-header')]
+      .filter(header => header.closest('.group-li').querySelector('.tabs-list').classList.contains('open'))
+      .map(header => header.dataset.groupId)
+  );
   listEl.innerHTML = '';
   navList  = [];
   navIndex = -1;
@@ -200,39 +239,17 @@ async function renderGroups() {
         ? `${totalTabs} tab${totalTabs !== 1 ? 's' : ''} · ${activeGroups.length} group${activeGroups.length !== 1 ? 's' : ''}`
         : `${totalTabs} tab${totalTabs !== 1 ? 's' : ''} – no groups`;
 
-      const groupsWithMeta = activeGroups.map(group => ({
-        ...group,
-        key: getGroupKey(group),
-      }));
-
-      // Default order: tab count desc
-      groupsWithMeta.sort((a, b) => (groupTabsMap.get(b.id) || []).length - (groupTabsMap.get(a.id) || []).length);
-
-      // Optional manual order from storage
-      const storedOrder = await getStoredGroupOrder();
-      const groupByKey = new Map(groupsWithMeta.map(group => [group.key, group]));
-      const orderedGroups = [];
-
-      for (const key of storedOrder) {
-        const group = groupByKey.get(key);
-        if (group) {
-          orderedGroups.push(group);
-          groupByKey.delete(key);
-        }
-      }
-      orderedGroups.push(...groupByKey.values());
-
-      const nextOrder = orderedGroups.map(group => group.key);
-      if (JSON.stringify(nextOrder) !== JSON.stringify(storedOrder)) {
-        await saveGroupOrder(nextOrder);
-      }
+      // Match the browser's left-to-right tab-strip order.
+      const orderedGroups = [...activeGroups].sort((a, b) =>
+        Math.min(...groupTabsMap.get(a.id).map(tab => tab.index))
+        - Math.min(...groupTabsMap.get(b.id).map(tab => tab.index))
+      );
 
       for (const group of orderedGroups) {
         listEl.appendChild(buildGroupItem({
           id: group.id,
           title: group.title || DEFAULT_GROUP_TITLE,
           color: group.color || DEFAULT_GROUP_COLOR,
-          key: group.key,
         }, groupTabsMap.get(group.id) || []));
       }
 
@@ -240,13 +257,23 @@ async function renderGroups() {
       if (ungroupedTabs.length > 0) {
         listEl.appendChild(buildGroupItem({ id: -1, title: 'Ungrouped', color: null }, ungroupedTabs));
       }
+
+      for (const header of listEl.querySelectorAll('.group-header')) {
+        if (expandedGroupIds.has(header.dataset.groupId)) {
+          setGroupExpanded(header.closest('.group-li'), true);
+        }
+      }
     }
   } catch (err) {
     statusEl.textContent = 'Error loading groups.';
     console.error(err);
   }
 
-  buildNavList();
+  if (searchQuery) {
+    filterList(searchQuery);
+  } else {
+    buildNavList();
+  }
 }
 
 // ── Search / filter ──────────────────────────────────────────────────────────
@@ -382,6 +409,7 @@ function setGroupExpanded(li, expanded) {
   const chevron = li.querySelector('.chevron');
   tabsList.classList.toggle('open', expanded);
   chevron.classList.toggle('open', expanded);
+  li.querySelector('.group-header').setAttribute('aria-expanded', String(expanded));
 }
 
 function expandCollapseAll(expand) {
@@ -393,57 +421,29 @@ function expandCollapseAll(expand) {
   buildNavList();
 }
 
-async function moveGroupByOffset(groupHeader, offset) {
-  const sourceLi = groupHeader.closest('li.group-li');
-  if (!sourceLi || sourceLi.classList.contains('ungrouped-li')) return false;
-  const listEl = document.getElementById('groups-list');
-  const movableLis = [...listEl.querySelectorAll('li.group-li:not(.ungrouped-li)')];
-  const sourceIdx = movableLis.indexOf(sourceLi);
-  if (sourceIdx === -1) return false;
-  const targetIdx = Math.max(0, Math.min(sourceIdx + offset, movableLis.length - 1));
-  if (targetIdx === sourceIdx) return false;
+async function moveGroupInTabStrip(groupHeader, offset) {
+  if (currentWindowId === null || isMovingGroup) return false;
+  const sourceGroupId = Number(groupHeader.dataset.groupId);
+  if (!Number.isInteger(sourceGroupId) || sourceGroupId === -1) return false;
 
-  const targetLi = movableLis[targetIdx];
-  if (targetIdx > sourceIdx) {
-    listEl.insertBefore(sourceLi, targetLi.nextSibling);
-  } else {
-    listEl.insertBefore(sourceLi, targetLi);
+  isMovingGroup = true;
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'moveGroup',
+      groupId: sourceGroupId,
+      offset,
+      windowId: currentWindowId,
+    });
+    if (!response.ok) throw new Error(response.error || 'Could not move group.');
+    if (!response.moved) return false;
+
+    await renderGroups();
+    navRefocus([...document.querySelectorAll('.group-header')]
+      .find(header => Number(header.dataset.groupId) === sourceGroupId));
+    return true;
+  } finally {
+    isMovingGroup = false;
   }
-
-  await persistDomGroupOrder();
-  buildNavList();
-  navRefocus(groupHeader);
-  return true;
-}
-
-async function moveFocusedGroupBelowSearchTarget() {
-  if (navIndex < 0 || navIndex >= navList.length) return false;
-  const current = navList[navIndex];
-  if (current.type !== 'group') return false;
-  const sourceHeader = current.el;
-  const sourceLi = sourceHeader.closest('li.group-li');
-  if (!sourceLi || sourceLi.classList.contains('ungrouped-li')) return false;
-
-  const query = (document.getElementById('search').value || '').trim().toLowerCase();
-  if (!query) return false;
-
-  const listEl = document.getElementById('groups-list');
-  const targetHeader = [...listEl.querySelectorAll('li.group-li:not(.ungrouped-li) .group-header')]
-    .find(header =>
-      header !== sourceHeader &&
-      header.closest('li.group-li').style.display !== 'none' &&
-      (header.dataset.groupTitle || '').toLowerCase().includes(query)
-    );
-
-  if (!targetHeader) return false;
-  const targetLi = targetHeader.closest('li.group-li');
-  if (!targetLi || sourceLi === targetLi) return false;
-
-  listEl.insertBefore(sourceLi, targetLi.nextSibling);
-  await persistDomGroupOrder();
-  buildNavList();
-  navRefocus(sourceHeader);
-  return true;
 }
 
 function focusCurrentTabGroup() {
@@ -472,6 +472,13 @@ function focusCurrentTabGroup() {
   return false;
 }
 
+function isGroupMoveShortcut(event) {
+  return !event.ctrlKey
+    && !event.shiftKey
+    && (event.altKey || event.metaKey)
+    && (event.key === 'ArrowUp' || event.key === 'ArrowDown');
+}
+
 document.addEventListener('keydown', (e) => {
   const searchEl = document.getElementById('search');
   const onSearch = document.activeElement === searchEl;
@@ -495,21 +502,23 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'm') {
-    e.preventDefault();
-    moveFocusedGroupBelowSearchTarget();
-    return;
-  }
-
-  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && hasFocusedGroupNavTarget()) {
+  if (isGroupMoveShortcut(e) && hasFocusedGroupNavTarget()) {
     if (e.key === 'ArrowUp') {
       e.preventDefault();
-      moveGroupByOffset(navList[navIndex].el, -1);
+      moveGroupInTabStrip(navList[navIndex].el, -1)
+        .catch(err => {
+          document.getElementById('status').textContent = 'Could not move group.';
+          console.error('Failed to move group:', err);
+        });
       return;
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      moveGroupByOffset(navList[navIndex].el, 1);
+      moveGroupInTabStrip(navList[navIndex].el, 1)
+        .catch(err => {
+          document.getElementById('status').textContent = 'Could not move group.';
+          console.error('Failed to move group:', err);
+        });
       return;
     }
   }
@@ -597,8 +606,9 @@ document.addEventListener('keydown', (e) => {
 
 document.getElementById('regroup-btn').addEventListener('click', async () => {
   const btn = document.getElementById('regroup-btn');
+  const label = document.getElementById('regroup-label');
   btn.disabled = true;
-  btn.textContent = 'Regrouping…';
+  label.textContent = 'Grouping…';
   try {
     // Send a message to the background service worker (it will do the work).
     await chrome.runtime.sendMessage({ action: 'regroupAll' });
@@ -608,7 +618,7 @@ document.getElementById('regroup-btn').addEventListener('click', async () => {
     console.error(err);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Regroup Tabs Now';
+    label.textContent = 'Regroup';
   }
 });
 
@@ -624,7 +634,9 @@ async function loadNoMergeDomains() {
 }
 
 document.getElementById('settings-btn').addEventListener('click', () => {
-  document.getElementById('settings-panel').classList.toggle('open');
+  const panel = document.getElementById('settings-panel');
+  const isOpen = panel.classList.toggle('open');
+  document.getElementById('settings-btn').setAttribute('aria-expanded', String(isOpen));
 });
 
 document.getElementById('save-settings-btn').addEventListener('click', async () => {

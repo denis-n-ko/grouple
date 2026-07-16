@@ -13,7 +13,7 @@ Tabs from `mail.google.com` and `docs.google.com`, for example, are grouped toge
 - Merges subdomains by default, with support for common multi-part TLDs such as `co.uk`.
 - Lets you keep selected domains' subdomains separate from the popup settings.
 - Assigns each domain a deterministic tab-group colour.
-- Provides a searchable popup with group ordering, keyboard navigation, and quick tab closing.
+- Provides a searchable popup that mirrors browser group order, supports group repositioning, keyboard navigation, and quick tab closing.
 - Includes browser-wide shortcuts to collapse, expand, or focus tab groups.
 - Works independently in every open browser window.
 
@@ -38,7 +38,7 @@ Configure or resolve shortcut conflicts at `chrome://extensions/shortcuts` or `b
 | Expand all groups | `Ctrl`+`Shift`+`.` | `Ctrl`+`Shift`+`.` |
 | Focus the active group | `Ctrl`+`Shift`+`U` | `Ctrl`+`Shift`+`G` |
 
-When the popup is open, use `Ctrl`+`Shift`+`[` and `Ctrl`+`Shift`+`]` to collapse and expand visible groups, arrow keys to navigate, and `Enter` to open a group or activate a tab.
+When the popup is open, use `Ctrl`+`Shift`+`[` and `Ctrl`+`Shift`+`]` to collapse and expand visible groups, arrow keys to navigate, and `Enter` to open a group or activate a tab. Use `Alt`+`↑` / `Alt`+`↓` or `Cmd`+`↑` / `Cmd`+`↓` on macOS to move the focused group up or down in the browser tab strip. Left and right arrows collapse or expand a focused group.
 
 ## Behavior and limitations
 
@@ -55,7 +55,7 @@ Auto Tab Groups has no network requests, analytics, accounts, or remote code. It
 | --- | --- |
 | `tabs` | Read tab URLs and arrange tabs into groups. |
 | `tabGroups` | Create, update, and inspect browser tab groups. |
-| `storage` | Save popup group order and domain-separation preferences locally. |
+| `storage` | Save domain-separation preferences locally. |
 
 ## Development
 
