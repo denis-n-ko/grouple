@@ -113,8 +113,10 @@ function buildGroupItem(group, groupTabs) {
   const tabsList = document.createElement('ul');
   tabsList.className = 'tabs-list';
 
-  for (const tab of groupTabs) {
+  for (const [position, tab] of groupTabs.entries()) {
     const tabItem = document.createElement('li');
+    // Original tab-strip position, so relevance sorting can be undone.
+    tabItem.dataset.pos = String(position);
     tabItem.className = 'tab-item' + (tab.active ? ' active-tab' : '');
     tabItem.dataset.tabTitle = tab.title || tab.url || '';
     tabItem.dataset.tabUrl = tab.url || '';
@@ -264,6 +266,9 @@ async function renderGroups() {
         listEl.appendChild(buildGroupItem({ id: -1, title: 'Ungrouped', color: null }, ungroupedTabs));
       }
 
+      [...listEl.querySelectorAll('li.group-li')]
+        .forEach((li, position) => { li.dataset.pos = String(position); });
+
       for (const header of listEl.querySelectorAll('.group-header')) {
         if (expandedGroupIds.has(header.dataset.groupId)) {
           setGroupExpanded(header.closest('.group-li'), true);
@@ -298,57 +303,173 @@ function setTabIndex(tabItem, index) {
   }
 }
 
-function filterList(query) {
-  const q      = query.trim().toLowerCase();
-  const listEl = document.getElementById('groups-list');
-  searchIndexedTabs = [];
+// A query is split on whitespace; every token must match at least one field of
+// a tab (its title, its URL, or its group's title). A token matches either as a
+// plain substring or, failing that, as a fuzzy subsequence — so "git hello"
+// finds the tab titled "Hello Kitty Project" living on git.inbit.dev.
+const BOUNDARY_CHARS = /[\s\-_./:?=&#@+~,|]/;
 
-  for (const li of listEl.querySelectorAll('li.group-li')) {
-    const header    = li.querySelector('.group-header');
-    const groupTitle = (header.dataset.groupTitle || '').toLowerCase();
-    const tabsList  = li.querySelector('.tabs-list');
-    const tabItems  = tabsList ? [...tabsList.querySelectorAll('.tab-item')] : [];
+function isBoundary(hay, i) {
+  return i === 0 || BOUNDARY_CHARS.test(hay[i - 1]);
+}
 
-    if (!q) {
-      li.style.display = '';
-      tabItems.forEach(t => {
+// Score one token against one string. Higher is better; -1 means no match.
+// Substring hits always outrank fuzzy ones, and both prefer early, word-start
+// positions.
+function scoreToken(needle, hay) {
+  if (!hay) return -1;
+
+  const idx = hay.indexOf(needle);
+  if (idx !== -1) {
+    return 1000
+      - Math.min(idx, 100)
+      + (isBoundary(hay, idx) ? 200 : 0)
+      + Math.round((needle.length / hay.length) * 100);
+  }
+
+  // Single characters are too noisy to match as a subsequence.
+  if (needle.length < 2) return -1;
+
+  let hi = 0;
+  let score = 0;
+  let streak = 0;
+  let first = -1;
+  let prev = -1;
+
+  for (const ch of needle) {
+    let found = -1;
+    while (hi < hay.length) {
+      if (hay[hi] === ch) { found = hi++; break; }
+      hi++;
+    }
+    if (found === -1) return -1;
+
+    if (first === -1) first = found;
+    if (found === prev + 1) {
+      streak++;
+      score += 15 + streak * 5;
+    } else {
+      streak = 0;
+      score += isBoundary(hay, found) ? 12 : 3;
+    }
+    prev = found;
+  }
+
+  // Penalise matches that start late or are spread thin across the string.
+  const spread = prev - first + 1 - needle.length;
+  return Math.max(1, score - Math.round(first * 0.3) - Math.round(spread * 0.5));
+}
+
+// Every token must hit some field; the total is the sum of each token's best
+// weighted field score. Returns -1 when any token misses everywhere.
+function scoreFields(tokens, fields) {
+  let total = 0;
+  for (const token of tokens) {
+    let best = -1;
+    for (const { text, weight } of fields) {
+      const score = scoreToken(token, text);
+      if (score >= 0) best = Math.max(best, score * weight);
+    }
+    if (best < 0) return -1;
+    total += best;
+  }
+  return total;
+}
+
+const byPos = (a, b) => Number(a.dataset.pos || 0) - Number(b.dataset.pos || 0);
+
+// Best matches first; ties fall back to the original tab-strip order.
+function byRelevance(a, b) {
+  return b.score - a.score || byPos(a.el, b.el);
+}
+
+// Put a list of rows back in tab-strip order and clear every search badge.
+function resetOrder(listEl) {
+  for (const li of [...listEl.querySelectorAll('li.group-li')].sort(byPos)) {
+    const tabsList = li.querySelector('.tabs-list');
+    li.style.display = '';
+    if (tabsList) {
+      for (const t of [...tabsList.querySelectorAll('.tab-item')].sort(byPos)) {
         t.style.display = '';
         const badge = t.querySelector('.tab-index');
         if (badge) badge.style.display = 'none';
-      });
-    } else if (groupTitle.includes(q)) {
-      li.style.display = '';
-      // Auto-expand group so tabs are visible when group title matches
-      if (tabsList) {
-        tabsList.classList.add('open');
-        li.querySelector('.chevron').classList.add('open');
-      }
-      tabItems.forEach(t => {
-        t.style.display = '';
-        searchIndexedTabs.push(t);
-        setTabIndex(t, searchIndexedTabs.length);
-      });
-    } else {
-      let anyMatch = false;
-      tabItems.forEach(t => {
-        const match = (t.dataset.tabTitle || '').toLowerCase().includes(q) ||
-                      (t.dataset.tabUrl || '').toLowerCase().includes(q);
-        t.style.display = match ? '' : 'none';
-        if (match) {
-          anyMatch = true;
-          searchIndexedTabs.push(t);
-          setTabIndex(t, searchIndexedTabs.length);
-        } else {
-          const badge = t.querySelector('.tab-index');
-          if (badge) badge.style.display = 'none';
-        }
-      });
-      li.style.display = anyMatch ? '' : 'none';
-      if (anyMatch && tabsList) {
-        tabsList.classList.add('open');
-        li.querySelector('.chevron').classList.add('open');
+        tabsList.appendChild(t);
       }
     }
+    listEl.appendChild(li);
+  }
+}
+
+function filterList(query) {
+  const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const listEl = document.getElementById('groups-list');
+  searchIndexedTabs = [];
+
+  if (tokens.length === 0) {
+    resetOrder(listEl);
+    buildNavList();
+    return;
+  }
+
+  const ranked = [];
+
+  for (const li of listEl.querySelectorAll('li.group-li')) {
+    const header     = li.querySelector('.group-header');
+    const groupTitle = (header.dataset.groupTitle || '').toLowerCase();
+    const tabsList   = li.querySelector('.tabs-list');
+    const tabItems   = tabsList ? [...tabsList.querySelectorAll('.tab-item')] : [];
+
+    // A group whose own title matches every token shows all of its tabs.
+    const groupScore = scoreFields(tokens, [{ text: groupTitle, weight: 1 }]);
+
+    const hits = [];
+    const misses = [];
+    for (const el of tabItems) {
+      const tabScore = scoreFields(tokens, [
+        { text: (el.dataset.tabTitle || '').toLowerCase(), weight: 1 },
+        { text: (el.dataset.tabUrl   || '').toLowerCase(), weight: 0.9 },
+        { text: groupTitle,                                weight: 0.8 },
+      ]);
+      const score = Math.max(tabScore, groupScore);
+      if (score >= 0) hits.push({ el, score });
+      else misses.push(el);
+    }
+
+    hits.sort(byRelevance);
+    ranked.push({
+      el: li,
+      tabsList,
+      hits,
+      misses,
+      score: hits.length ? hits[0].score : -1,
+    });
+  }
+
+  ranked.sort(byRelevance);
+
+  for (const group of ranked) {
+    const { el: li, tabsList, hits, misses } = group;
+
+    for (const { el } of hits) {
+      el.style.display = '';
+      searchIndexedTabs.push(el);
+      setTabIndex(el, searchIndexedTabs.length);
+      tabsList.appendChild(el);
+    }
+    for (const el of misses.sort(byPos)) {
+      el.style.display = 'none';
+      const badge = el.querySelector('.tab-index');
+      if (badge) badge.style.display = 'none';
+      tabsList.appendChild(el);
+    }
+
+    li.style.display = hits.length ? '' : 'none';
+    // Auto-expand so the matching tabs are visible.
+    if (hits.length && tabsList) {
+      tabsList.classList.add('open');
+      li.querySelector('.chevron').classList.add('open');
+    }
+    listEl.appendChild(li);
   }
 
   buildNavList();
