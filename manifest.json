@@ -3,7 +3,7 @@
   "name": "Grouple",
   "version": "1.0.0",
   "description": "Automatically groups open tabs by domain name",
-  "permissions": ["tabs", "tabGroups", "storage"],
+  "permissions": ["tabs", "tabGroups", "storage", "contextMenus"],
   "commands": {
     "_execute_action": {
       "suggested_key": {
@@ -32,11 +32,22 @@
         "mac": "MacCtrl+Shift+G"
       },
       "description": "Unfold the active tab's group and fold all others"
+    },
+    "toggle-tab-work-group": {
+      "description": "Add the current tab to the manual group (or take it out)"
     }
   },
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Grouple",

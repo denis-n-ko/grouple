@@ -15,6 +15,7 @@ jobs:
       - name: Validate extension files
         run: |
           node --check background.js
+          node --check content.js
           node --check popup.js
           node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8'))"
 
@@ -33,7 +34,7 @@ jobs:
       - name: Package extension
         run: |
           zip -r "${{ steps.name.outputs.artifact }}.zip" \
-            manifest.json background.js popup.html popup.js icons/
+            manifest.json background.js content.js popup.html popup.js icons/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

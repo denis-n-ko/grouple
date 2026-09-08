@@ -55,14 +55,49 @@ function normalizeNoMergeList(list) {
   return Array.isArray(list) ? list.map(d => String(d).trim().toLowerCase()).filter(Boolean) : [];
 }
 
-const settingsReady = chrome.storage.local.get({ [STORAGE_NO_MERGE_KEY]: [] }).then((data) => {
+/**
+ * The manual group: the one group the user fills by hand (Cmd/Ctrl+Alt+click a
+ * link, the link context menu, or the toggle-tab-work-group command) to keep
+ * everything for one task together. Domain regrouping never touches its tabs.
+ * Like every other group here it is identified by its title, which the user
+ * can rename from the popup's settings panel.
+ */
+const STORAGE_WORK_TITLE_KEY = 'workGroupTitle';
+const DEFAULT_WORK_GROUP_TITLE = 'WORK';
+/** Grey is absent from COLORS, so the manual group never looks like a domain group. */
+const WORK_GROUP_COLOR = 'grey';
+let workGroupTitle = DEFAULT_WORK_GROUP_TITLE;
+
+function normalizeWorkTitle(value) {
+  const title = typeof value === 'string' ? value.trim() : '';
+  return title || DEFAULT_WORK_GROUP_TITLE;
+}
+
+const settingsReady = chrome.storage.local.get({
+  [STORAGE_NO_MERGE_KEY]: [],
+  [STORAGE_WORK_TITLE_KEY]: DEFAULT_WORK_GROUP_TITLE,
+}).then((data) => {
   customNoMergeDomains = new Set(normalizeNoMergeList(data[STORAGE_NO_MERGE_KEY]));
+  workGroupTitle = normalizeWorkTitle(data[STORAGE_WORK_TITLE_KEY]);
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes[STORAGE_NO_MERGE_KEY]) {
+  if (area !== 'local') return;
+
+  if (changes[STORAGE_NO_MERGE_KEY]) {
     customNoMergeDomains = new Set(normalizeNoMergeList(changes[STORAGE_NO_MERGE_KEY].newValue));
     scheduleRegroup(null);
+  }
+
+  if (changes[STORAGE_WORK_TITLE_KEY]) {
+    // oldValue rather than the in-memory title: a just-woken service worker
+    // may not have finished loading settings yet.
+    const previousTitle = normalizeWorkTitle(changes[STORAGE_WORK_TITLE_KEY].oldValue);
+    workGroupTitle = normalizeWorkTitle(changes[STORAGE_WORK_TITLE_KEY].newValue);
+    // Retitle groups that are already open, otherwise they would stop being
+    // recognised as the manual group and get pulled back into domain grouping.
+    renameWorkGroups(previousTitle).catch(console.error);
+    updateWorkContextMenu();
   }
 });
 
@@ -101,8 +136,8 @@ function getDomain(url) {
  *
  * Algorithm:
  *  1. Build a domain → tabIds map from the current tab list, ignoring pinned
- *     tabs entirely (they are never grouped and never counted for the ≥ 2
- *     threshold).
+ *     tabs and tabs in the manual group entirely (they are never grouped and
+ *     never counted for the ≥ 2 threshold).
  *  2. Ungroup any tab whose URL doesn't have an http/https domain, and any
  *     tab that is the sole tab for its domain (groups need ≥ 2 tabs).
  *  3. For each domain that has ≥ 2 tabs:
@@ -111,7 +146,16 @@ function getDomain(url) {
  */
 async function regroupTabsInWindow(windowId) {
   await settingsReady;
-  const tabs = await chrome.tabs.query({ windowId });
+  const [tabs, groupsBeforeRegroup] = await Promise.all([
+    chrome.tabs.query({ windowId }),
+    chrome.tabGroups.query({ windowId }),
+  ]);
+
+  // Tabs the user deliberately put in the manual group are off-limits: they
+  // stay there regardless of their domain until the user takes them out.
+  const workGroupIds = new Set(
+    groupsBeforeRegroup.filter(g => g.title === workGroupTitle).map(g => g.id)
+  );
 
   // ── 1. Categorise tabs ──────────────────────────────────────────────────
   const domainToTabIds = new Map();
@@ -119,6 +163,7 @@ async function regroupTabsInWindow(windowId) {
 
   for (const tab of tabs) {
     if (tab.pinned) continue; // pinned tabs are left exactly as the user put them
+    if (workGroupIds.has(tab.groupId)) continue; // manually collected, never regrouped
 
     const domain = getDomain(tab.pendingUrl || tab.url);
     if (domain) {
@@ -152,7 +197,9 @@ async function regroupTabsInWindow(windowId) {
   // Build a title → groupId map for groups that already exist in this window.
   const existingGroups = await chrome.tabGroups.query({ windowId });
   const titleToGroupId = new Map(
-    existingGroups.filter(g => g.title).map(g => [g.title, g.id])
+    existingGroups
+      .filter(g => g.title && g.title !== workGroupTitle)
+      .map(g => [g.title, g.id])
   );
 
   for (const [domain, tabIds] of domainToTabIds) {
@@ -172,6 +219,138 @@ async function regroupTabsInWindow(windowId) {
     }
   }
 }
+
+// ── Manual "WORK" group ──────────────────────────────────────────────────────
+// Filled by Cmd/Ctrl+Alt+click on a link (see content.js), the link context
+// menu, or the toggle-tab-work-group command. regroupTabsInWindow skips every
+// tab in it, so a task's links stay together instead of scattering by domain.
+
+/** The manual group in a window, or null if it doesn't exist there yet. */
+async function findWorkGroup(windowId) {
+  const groups = await chrome.tabGroups.query({ windowId });
+  return groups.find(g => g.title === workGroupTitle) || null;
+}
+
+/**
+ * Moves tabs into the window's manual group, creating and labelling the group
+ * when this is the first tab to land in it. Returns the group id.
+ */
+async function addTabsToWorkGroup(tabIds, windowId) {
+  await settingsReady;
+
+  const existing = await findWorkGroup(windowId);
+  if (existing) {
+    await chrome.tabs.group({ groupId: existing.id, tabIds });
+    return existing.id;
+  }
+
+  const groupId = await chrome.tabs.group({ createProperties: { windowId }, tabIds });
+  await chrome.tabGroups.update(groupId, {
+    title: workGroupTitle,
+    color: WORK_GROUP_COLOR,
+  });
+  return groupId;
+}
+
+/**
+ * Opens a URL in a background tab next to the tab it came from and puts it in
+ * the manual group straight away — before the debounced regroup can run, so the
+ * tab is never briefly grouped by domain.
+ *
+ * The URL arrives from a content script, i.e. from a web page, so it is
+ * re-checked here rather than trusted.
+ */
+async function openInWorkGroup(url, sourceTab) {
+  if (!/^https?:\/\//i.test(url || '')) {
+    throw new Error('Only http/https links can be opened in the manual group.');
+  }
+
+  const windowId = sourceTab ? sourceTab.windowId : (await chrome.windows.getCurrent()).id;
+  const createProperties = { url, windowId, active: false };
+  if (sourceTab) {
+    createProperties.index = sourceTab.index + 1;
+    createProperties.openerTabId = sourceTab.id;
+  }
+
+  const tab = await chrome.tabs.create(createProperties);
+  await addTabsToWorkGroup([tab.id], windowId);
+  return tab.id;
+}
+
+/** Adds the active tab to the manual group, or takes it out if it's already in. */
+async function toggleActiveTabInWorkGroup() {
+  await settingsReady;
+
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab) return;
+
+  const workGroup = await findWorkGroup(tab.windowId);
+  if (workGroup && tab.groupId === workGroup.id) {
+    await chrome.tabs.ungroup([tab.id]);
+    scheduleRegroup(tab.windowId); // hand it back to domain grouping
+    return;
+  }
+
+  await addTabsToWorkGroup([tab.id], tab.windowId);
+}
+
+/**
+ * Empties the manual group in a window — the "task finished" reset. Its tabs
+ * become ordinary tabs again and the next regroup files them by domain.
+ */
+async function releaseWorkGroup(windowId) {
+  await settingsReady;
+
+  const workGroup = await findWorkGroup(windowId);
+  if (!workGroup) return false;
+
+  const tabs = await chrome.tabs.query({ windowId, groupId: workGroup.id });
+  if (tabs.length > 0) {
+    await chrome.tabs.ungroup(tabs.map(t => t.id));
+  }
+  scheduleRegroup(windowId);
+  return true;
+}
+
+/** Retitles open manual groups after the user renames the group in settings. */
+async function renameWorkGroups(previousTitle) {
+  if (!previousTitle || previousTitle === workGroupTitle) return;
+
+  const groups = await chrome.tabGroups.query({});
+  for (const group of groups.filter(g => g.title === previousTitle)) {
+    await chrome.tabGroups.update(group.id, { title: workGroupTitle }).catch(console.error);
+  }
+}
+
+// ── Link context menu ────────────────────────────────────────────────────────
+// Same destination as the click shortcut, but it also works where content
+// scripts can't run (the Web Store, PDF viewer, pages open since before the
+// extension was loaded).
+
+const WORK_MENU_ID = 'grouple-open-link-in-work-group';
+
+function workMenuTitle() {
+  return `Open link in "${workGroupTitle}" group`;
+}
+
+async function createWorkContextMenu() {
+  await settingsReady;
+  await chrome.contextMenus.removeAll();
+  chrome.contextMenus.create({
+    id: WORK_MENU_ID,
+    title: workMenuTitle(),
+    contexts: ['link'],
+  });
+}
+
+function updateWorkContextMenu() {
+  chrome.contextMenus.update(WORK_MENU_ID, { title: workMenuTitle() }).catch(() => {});
+}
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId !== WORK_MENU_ID || !info.linkUrl) return;
+  openInWorkGroup(info.linkUrl, tab).catch(console.error);
+});
 
 // ── Debounced regroup ────────────────────────────────────────────────────────
 // Many tab events can fire in rapid succession (e.g. on startup).
@@ -288,6 +467,8 @@ chrome.commands.onCommand.addListener((command) => {
     setAllGroupsCollapsed(false).catch(console.error);
   } else if (command === 'focus-active-group') {
     focusActiveTabGroup().catch(console.error);
+  } else if (command === 'toggle-tab-work-group') {
+    toggleActiveTabInWorkGroup().catch(console.error);
   }
 });
 
@@ -342,13 +523,24 @@ async function moveGroupInWindow(groupId, offset, windowId) {
   return true;
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'regroupAll') {
     scheduleRegroup(null);
     sendResponse({ ok: true });
   } else if (message.action === 'moveGroup') {
     moveGroupInWindow(message.groupId, message.offset, message.windowId)
       .then(moved => sendResponse({ ok: true, moved }))
+      .catch(error => sendResponse({ ok: false, error: error.message }));
+    return true;
+  } else if (message.action === 'openInWorkGroup') {
+    // sender.tab is the page that was clicked; absent when the popup asks.
+    openInWorkGroup(message.url, sender.tab)
+      .then(tabId => sendResponse({ ok: true, tabId }))
+      .catch(error => sendResponse({ ok: false, error: error.message }));
+    return true;
+  } else if (message.action === 'releaseWorkGroup') {
+    releaseWorkGroup(message.windowId)
+      .then(released => sendResponse({ ok: true, released }))
       .catch(error => sendResponse({ ok: false, error: error.message }));
     return true;
   }
@@ -358,9 +550,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 // ── Initial grouping ─────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(() => {
+  createWorkContextMenu().catch(console.error);
   scheduleRegroup(null);
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  createWorkContextMenu().catch(console.error);
   scheduleRegroup(null);
 });
