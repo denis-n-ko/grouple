@@ -12,6 +12,7 @@ Tabs from `mail.google.com` and `docs.google.com`, for example, are grouped toge
 - Groups two or more unpinned `http`/`https` tabs that share a base domain.
 - Merges subdomains by default, with support for common multi-part TLDs such as `co.uk`.
 - Lets you keep selected domains' subdomains separate from the popup settings.
+- Collects links for one task into a manual **WORK** group with `Cmd`/`Ctrl`+`Alt`+click, and never regroups its tabs by domain.
 - Assigns each domain a deterministic tab-group colour.
 - Provides a searchable popup that mirrors browser group order, supports group repositioning, keyboard navigation, and quick tab closing.
 - Includes browser-wide shortcuts to collapse, expand, or focus tab groups.
@@ -37,14 +38,31 @@ Configure or resolve shortcut conflicts at `chrome://extensions/shortcuts` or `b
 | Collapse all groups | `Ctrl`+`Shift`+`,` | `Ctrl`+`Shift`+`,` |
 | Expand all groups | `Ctrl`+`Shift`+`.` | `Ctrl`+`Shift`+`.` |
 | Focus the active group | `Ctrl`+`Shift`+`U` | `Ctrl`+`Shift`+`G` |
+| Add/remove the current tab in the WORK group | unassigned | unassigned |
+
+Chrome allows an extension to suggest only four default shortcuts, so the WORK-group toggle ships unbound; assign it at `chrome://extensions/shortcuts`.
 
 When the popup is open, use `Ctrl`+`Shift`+`[` and `Ctrl`+`Shift`+`]` to collapse and expand visible groups, arrow keys to navigate, and `Enter` to open a group or activate a tab. Use `Alt`+`↑` / `Alt`+`↓` or `Cmd`+`↑` / `Cmd`+`↓` on macOS to move the focused group up or down in the browser tab strip. Left and right arrows collapse or expand a focused group.
+
+## The WORK group
+
+To keep everything for one task together instead of scattered across domain groups:
+
+- **`Cmd`+`Alt`+click** a link (`Ctrl`+`Alt`+click on Windows and Linux) opens it in a background tab inside the **WORK** group. Every native click shortcut — `Cmd`+click, `Shift`+click, `Alt`+click — keeps its usual meaning.
+- **Right-click a link → "Open link in WORK group"** does the same, and also works on pages where content scripts cannot run.
+- **Release** in the popup toolbar (shown only while the group exists) empties the group and hands its tabs back to domain grouping.
+- The group's name is editable in the popup's settings panel; renaming it retitles the open group rather than orphaning it.
+
+Tabs inside the WORK group are exempt from domain regrouping — they stay put until you take them out. The group is coloured grey, which domain groups never use.
+
+The click shortcut relies on a content script, so it does not fire on `chrome://` pages, the Chrome Web Store, the PDF viewer, or tabs that were already open when the extension was loaded or refreshed. Use the context menu there.
 
 ## Behavior and limitations
 
 - A domain needs at least two eligible tabs to form a group; a lone tab is left ungrouped.
 - Pinned tabs and non-web pages such as `chrome://`, `about:blank`, and `file://` are never grouped.
 - A manually renamed browser group is no longer recognized as the domain group, so a later regroup can create a new group.
+- Removing a tab from the WORK group can leave its domain with a single tab, which is then ungrouped.
 - The extension uses a practical list of common multi-part TLDs, not the full Public Suffix List.
 
 ## Privacy and permissions
@@ -55,7 +73,9 @@ Grouple has no network requests, analytics, accounts, or remote code. It process
 | --- | --- |
 | `tabs` | Read tab URLs and arrange tabs into groups. |
 | `tabGroups` | Create, update, and inspect browser tab groups. |
-| `storage` | Save domain-separation preferences locally. |
+| `storage` | Save domain-separation and WORK-group preferences locally. |
+| `contextMenus` | Add the "Open link in WORK group" item to the link context menu. |
+| Content script on all sites | Detect `Cmd`/`Ctrl`+`Alt`+click on links. It reads only the clicked link's URL and sends nothing anywhere else. |
 
 ## Development
 

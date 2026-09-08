@@ -11,8 +11,13 @@ let searchIndexedTabs = [];
 let isMovingGroup = false;
 
 const STORAGE_NO_MERGE_KEY = 'noMergeDomains';
+const STORAGE_WORK_TITLE_KEY = 'workGroupTitle';
+const DEFAULT_WORK_GROUP_TITLE = 'WORK';
 const DEFAULT_GROUP_TITLE = '(unnamed)';
 const DEFAULT_GROUP_COLOR = 'grey';
+
+// Title of the manual group, kept in sync with background.js via storage.
+let workGroupTitle = DEFAULT_WORK_GROUP_TITLE;
 
 // ── Build a group / ungrouped row ────────────────────────────────────────────
 function buildGroupItem(group, groupTabs) {
@@ -227,6 +232,7 @@ async function renderGroups() {
     }
 
     const activeGroups = groups.filter(g => groupTabsMap.has(g.id));
+    updateReleaseButton(activeGroups.some(g => g.title === workGroupTitle));
     const activeTab = tabs.find(tab => tab.active);
     currentActiveGroupId = activeTab ? activeTab.groupId : null;
     const totalTabs    = tabs.length;
@@ -626,11 +632,45 @@ document.getElementById('search').addEventListener('input', (e) => {
   filterList(e.target.value);
 });
 
+// ── Manual group ─────────────────────────────────────────────────────────────
+// The Release button only appears while the manual group exists in this window,
+// so the toolbar stays as compact as it is the rest of the time.
+function updateReleaseButton(hasWorkGroup) {
+  const btn = document.getElementById('release-work-btn');
+  btn.hidden = !hasWorkGroup;
+  document.getElementById('release-work-label').textContent = `Release ${workGroupTitle}`;
+  document.getElementById('shortcut-work-name').textContent = workGroupTitle;
+}
+
+document.getElementById('release-work-btn').addEventListener('click', async (event) => {
+  const btn = event.currentTarget;
+  btn.disabled = true;
+  try {
+    await chrome.runtime.sendMessage({ action: 'releaseWorkGroup', windowId: currentWindowId });
+    await renderGroups();
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ── Settings panel ───────────────────────────────────────────────────────────
-async function loadNoMergeDomains() {
-  const data = await chrome.storage.local.get({ [STORAGE_NO_MERGE_KEY]: [] });
+async function loadSettings() {
+  const data = await chrome.storage.local.get({
+    [STORAGE_NO_MERGE_KEY]: [],
+    [STORAGE_WORK_TITLE_KEY]: DEFAULT_WORK_GROUP_TITLE,
+  });
+
   const domains = Array.isArray(data[STORAGE_NO_MERGE_KEY]) ? data[STORAGE_NO_MERGE_KEY] : [];
   document.getElementById('no-merge-domains').value = domains.join('\n');
+
+  workGroupTitle = normalizeWorkTitle(data[STORAGE_WORK_TITLE_KEY]);
+  document.getElementById('work-group-name').value = workGroupTitle;
+  document.getElementById('shortcut-work-name').textContent = workGroupTitle;
+}
+
+function normalizeWorkTitle(value) {
+  const title = typeof value === 'string' ? value.trim() : '';
+  return title || DEFAULT_WORK_GROUP_TITLE;
 }
 
 document.getElementById('settings-btn').addEventListener('click', () => {
@@ -642,7 +682,17 @@ document.getElementById('settings-btn').addEventListener('click', () => {
 document.getElementById('save-settings-btn').addEventListener('click', async () => {
   const raw = document.getElementById('no-merge-domains').value;
   const domains = raw.split('\n').map(d => d.trim().toLowerCase()).filter(Boolean);
-  await chrome.storage.local.set({ [STORAGE_NO_MERGE_KEY]: domains });
+
+  workGroupTitle = normalizeWorkTitle(document.getElementById('work-group-name').value);
+  document.getElementById('work-group-name').value = workGroupTitle;
+
+  await chrome.storage.local.set({
+    [STORAGE_NO_MERGE_KEY]: domains,
+    [STORAGE_WORK_TITLE_KEY]: workGroupTitle,
+  });
+  // background.js retitles any open manual group in response to that storage
+  // change, so give it a moment before re-reading the groups.
+  setTimeout(renderGroups, 200);
 
   const btn = document.getElementById('save-settings-btn');
   const original = btn.textContent;
@@ -654,7 +704,10 @@ document.getElementById('save-settings-btn').addEventListener('click', async () 
   }, 1200);
 });
 
-// Render on open, then focus search bar
-renderGroups();
-loadNoMergeDomains();
-document.getElementById('search').focus();
+// Load settings first — renderGroups needs the manual group's title to know
+// whether to offer the Release button — then render and focus the search bar.
+(async () => {
+  await loadSettings();
+  await renderGroups();
+  document.getElementById('search').focus();
+})();
