@@ -312,6 +312,31 @@ async function releaseWorkGroup(windowId) {
   return true;
 }
 
+/**
+ * The other way to finish a task: closes every tab in the manual group.
+ * If those are the window's only tabs, a new tab is opened first so the window
+ * itself doesn't close with them. Returns the number of tabs closed.
+ */
+async function closeWorkGroup(windowId) {
+  await settingsReady;
+
+  const workGroup = await findWorkGroup(windowId);
+  if (!workGroup) return 0;
+
+  const [workTabs, allTabs] = await Promise.all([
+    chrome.tabs.query({ windowId, groupId: workGroup.id }),
+    chrome.tabs.query({ windowId }),
+  ]);
+  if (workTabs.length === 0) return 0;
+
+  if (workTabs.length === allTabs.length) {
+    await chrome.tabs.create({ windowId, active: true });
+  }
+  await chrome.tabs.remove(workTabs.map(t => t.id));
+  scheduleRegroup(windowId);
+  return workTabs.length;
+}
+
 /** Retitles open manual groups after the user renames the group in settings. */
 async function renameWorkGroups(previousTitle) {
   if (!previousTitle || previousTitle === workGroupTitle) return;
@@ -541,6 +566,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === 'releaseWorkGroup') {
     releaseWorkGroup(message.windowId)
       .then(released => sendResponse({ ok: true, released }))
+      .catch(error => sendResponse({ ok: false, error: error.message }));
+    return true;
+  } else if (message.action === 'closeWorkGroup') {
+    closeWorkGroup(message.windowId)
+      .then(closed => sendResponse({ ok: true, closed }))
       .catch(error => sendResponse({ ok: false, error: error.message }));
     return true;
   }
