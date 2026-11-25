@@ -450,7 +450,8 @@
     }
 
     /* Shown only while a manual group exists in this window. */
-    #release-work-btn {
+    #release-work-btn,
+    #close-work-btn {
       display: inline-flex;
       align-items: center;
       gap: 5px;
@@ -465,16 +466,35 @@
       transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
 
-    #release-work-btn:hover {
+    #release-work-btn:hover,
+    #close-work-btn:hover {
       background: var(--surface-hover);
       border-color: var(--border-hover);
       color: var(--text-primary);
     }
 
     /* An author-level display wins over the UA [hidden] rule, so restate it. */
-    #release-work-btn[hidden] { display: none; }
-    #release-work-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    #release-work-btn svg { width: 13px; height: 13px; }
+    #release-work-btn[hidden],
+    #close-work-btn[hidden] { display: none; }
+    #release-work-btn:disabled,
+    #close-work-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #release-work-btn svg,
+    #close-work-btn svg { width: 13px; height: 13px; }
+
+    /* Closing tabs can't be undone, so the first click only arms the button. */
+    #close-work-btn.confirm,
+    #close-work-btn.confirm:hover {
+      background: #5c1f24;
+      border-color: #a3343d;
+      color: #ffd7da;
+    }
+
+    #shortcut-hint a {
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+    }
+    #shortcut-hint a:hover { text-decoration: underline; }
 
     #release-work-label {
       max-width: 92px;
@@ -573,6 +593,13 @@
           </svg>
           <span id="release-work-label">Release</span>
         </button>
+        <button id="close-work-btn" hidden title="Close every tab in the manual group" aria-label="Close every tab in the manual group">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
+          </svg>
+          <span id="close-work-label">Close</span>
+        </button>
         <button id="regroup-btn" title="Regroup all tabs now" aria-label="Regroup all tabs now">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"></path>
@@ -597,7 +624,8 @@
       <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>[</kbd> fold all ·
       <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>]</kbd> unfold all ·
       <kbd>Alt</kbd>/<kbd>⌘</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> move group<br />
-      <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+click a link · open it in <span id="shortcut-work-name">WORK</span>
+      <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+click a link · open it in <span id="shortcut-work-name">WORK</span><br />
+      <span id="toggle-work-hint"></span>
     </p>
 
     <ul id="groups-list"></ul>

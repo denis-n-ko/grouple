@@ -761,6 +761,77 @@ function updateReleaseButton(hasWorkGroup) {
   btn.hidden = !hasWorkGroup;
   document.getElementById('release-work-label').textContent = `Release ${workGroupTitle}`;
   document.getElementById('shortcut-work-name').textContent = workGroupTitle;
+
+  document.getElementById('close-work-btn').hidden = !hasWorkGroup;
+  disarmCloseButton();
+  renderToggleWorkHint().catch(console.error);
+}
+
+// Closing is destructive, so the first click arms the button ("Close N tabs?")
+// and only a second click within a few seconds actually closes them.
+let closeArmTimer = null;
+
+function disarmCloseButton() {
+  clearTimeout(closeArmTimer);
+  closeArmTimer = null;
+  const btn = document.getElementById('close-work-btn');
+  btn.classList.remove('confirm');
+  document.getElementById('close-work-label').textContent = 'Close';
+  btn.title = 'Close every tab in the manual group';
+}
+
+document.getElementById('close-work-btn').addEventListener('click', async (event) => {
+  const btn = event.currentTarget;
+
+  if (!btn.classList.contains('confirm')) {
+    const groups = await chrome.tabGroups.query({ windowId: currentWindowId });
+    const workGroup = groups.find(g => g.title === workGroupTitle);
+    const count = workGroup
+      ? (await chrome.tabs.query({ windowId: currentWindowId, groupId: workGroup.id })).length
+      : 0;
+    btn.classList.add('confirm');
+    document.getElementById('close-work-label').textContent =
+      `Close ${count} tab${count === 1 ? '' : 's'}?`;
+    btn.title = 'Click again to close them';
+    closeArmTimer = setTimeout(disarmCloseButton, 3000);
+    return;
+  }
+
+  disarmCloseButton();
+  btn.disabled = true;
+  try {
+    await chrome.runtime.sendMessage({ action: 'closeWorkGroup', windowId: currentWindowId });
+    await renderGroups();
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// The toggle command ships without a default key (Chrome caps suggested keys
+// at four, all taken), so show its binding — or a link to set one.
+async function renderToggleWorkHint() {
+  const hint = document.getElementById('toggle-work-hint');
+  const commands = await chrome.commands.getAll();
+  const toggle = commands.find(c => c.name === 'toggle-tab-work-group');
+  hint.replaceChildren();
+
+  if (toggle && toggle.shortcut) {
+    for (const [i, key] of toggle.shortcut.split('+').entries()) {
+      if (i > 0) hint.append('+');
+      const kbd = document.createElement('kbd');
+      kbd.textContent = key;
+      hint.append(kbd);
+    }
+    hint.append(` add/remove current tab in ${workGroupTitle}`);
+  } else {
+    const link = document.createElement('a');
+    link.textContent = 'Set a shortcut';
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    });
+    hint.append(link, ` to add/remove the current tab in ${workGroupTitle}`);
+  }
 }
 
 document.getElementById('release-work-btn').addEventListener('click', async (event) => {
